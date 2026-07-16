@@ -21,9 +21,13 @@ app.get('/api/health', (_, response) => {
 // which handles the cookie/crumb handshake so we don't get rate-limited.
 app.get('/api/market-status', async (_, response) => {
   try {
+    const now = new Date()
+    const period1 = new Date(now)
+    period1.setHours(0, 0, 0, 0)
     const chart = await yahooFinance.chart('SPY', {
       interval: '1m',
-      range: '1d',
+      period1,
+      period2: now,
       includePrePost: false,
       return: 'object',
     })
