@@ -1,5 +1,6 @@
 require('dotenv').config()
 
+const path = require('path')
 const express = require('express')
 const cors = require('cors')
 const YahooFinance = require('yahoo-finance2').default
@@ -325,6 +326,15 @@ app.get('/api/option-chain', async (request, response) => {
    }
  })
 
+// Serve built React client
+const clientDist = path.join(__dirname, '..', 'client', 'dist')
+app.use(express.static(clientDist))
+
 app.listen(PORT, () => {
   console.log(`Options API server listening on http://localhost:${PORT}`)
+})
+
+// Catch-all: return index.html for client-side routes
+app.get('*', (_, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'))
 })

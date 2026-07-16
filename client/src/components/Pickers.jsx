@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import './Pickers.css'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000/api'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ??
+  (location.hostname === 'localhost' ? 'http://localhost:4000/api' : '/api')
 
 const POPULAR_TICKERS = [
   { symbol: 'AAPL',  name: 'Apple Inc.',               exchange: 'NASDAQ', quoteType: 'EQUITY' },

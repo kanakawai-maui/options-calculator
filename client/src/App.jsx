@@ -72,7 +72,8 @@ function checkMarketOpenByTime() {
 // Fetch SPY chart meta via the backend proxy — currentTradingPeriod.regular
 // reflects the actual market calendar including holidays. Called through our
 // own server because Yahoo doesn't send CORS headers to browsers.
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000/api'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ??
+  (location.hostname === 'localhost' ? 'http://localhost:4000/api' : '/api')
 
 async function fetchMarketOpen() {
   try {

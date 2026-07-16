@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './TickerScreener.css'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000/api'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ??
+  (location.hostname === 'localhost' ? 'http://localhost:4000/api' : '/api')
 
 // A curated set of option-liquid tickers to screen by default. Server has
 // its own default, but we mirror it here so users see what will run.

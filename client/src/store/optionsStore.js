@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000/api'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ??
+  (location.hostname === 'localhost' ? 'http://localhost:4000/api' : '/api')
 
 function getMarkPrice(contract) {
   if (!contract) return null
