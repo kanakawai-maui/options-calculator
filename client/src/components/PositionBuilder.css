@@ -1,0 +1,428 @@
+/* Position Builder — matches App.css dark theme tokens */
+
+.position-builder {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem;
+  min-width: 0;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.pb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.pb-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.pb-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.pb-net-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+}
+
+.pb-net-badge.credit {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--pos);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.pb-net-badge.debit {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--neg);
+  border-color: rgba(239, 68, 68, 0.32);
+}
+
+.pb-subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* ── Section labels ──────────────────────────────────────────────────────── */
+
+.pb-section-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+/* ── Strategy templates ──────────────────────────────────────────────────── */
+
+.pb-strategies {
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.pb-no-chain {
+  font-size: 0.76rem;
+  color: var(--text-dim);
+  margin: 0 0 0.5rem;
+  font-style: italic;
+}
+
+.strategy-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.strategy-group {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.strategy-group-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  min-width: 68px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.strategy-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.strategy-btn {
+  padding: 0.32rem 0.65rem;
+  font-size: 0.72rem;
+  background: var(--panel-2);
+  color: var(--text);
+  font-weight: 500;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+
+.strategy-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.strategy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Manual add actions ──────────────────────────────────────────────────── */
+
+.pb-actions {
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.pb-action-row {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.pb-add-btn {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.78rem;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--pos);
+  font-weight: 600;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.pb-add-btn:hover:not(:disabled) {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: var(--pos);
+}
+
+.pb-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pb-reset-btn {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.78rem;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.pb-reset-btn:hover:not(:disabled) {
+  color: var(--neg);
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.pb-reset-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pb-add-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+}
+
+.pb-add-hint strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ── Legs table ──────────────────────────────────────────────────────────── */
+
+.legs-scroll {
+  margin-top: 0.4rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.legs-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 680px;
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+
+.legs-table th,
+.legs-table td {
+  border: 1px solid var(--line);
+  padding: 0.32rem 0.45rem;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.legs-table thead th {
+  background: var(--panel-3);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.legs-table tfoot td {
+  background: var(--panel-3);
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.leg-num {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+}
+
+/* ── Leg badges ──────────────────────────────────────────────────────────── */
+
+.leg-badge {
+  display: inline-block;
+  padding: 0.08rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--ui-font);
+  border: 1px solid transparent;
+}
+
+.leg-badge.side-buy {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--pos);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.leg-badge.side-sell {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--neg);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.leg-badge.type-call {
+  background: rgba(76, 201, 240, 0.1);
+  color: var(--accent);
+  border-color: rgba(76, 201, 240, 0.3);
+}
+
+.leg-badge.type-put {
+  background: rgba(245, 181, 68, 0.1);
+  color: var(--accent-warm);
+  border-color: rgba(245, 181, 68, 0.3);
+}
+
+/* ── Mini payoff chart ───────────────────────────────────────────────────── */
+
+.leg-payoff-cell {
+  padding: 0.2rem 0.35rem !important;
+  min-width: 96px;
+}
+
+.leg-mini-chart {
+  display: block;
+  margin: 0 auto;
+}
+
+.leg-mini-zero {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.leg-mini-strike {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+  stroke-dasharray: 1 2;
+  opacity: 0.7;
+}
+
+.leg-mini-area.pos {
+  fill: var(--pos);
+  opacity: 0.22;
+}
+
+.leg-mini-area.neg {
+  fill: var(--neg);
+  opacity: 0.22;
+}
+
+.leg-mini-line {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.leg-mini-spot {
+  fill: var(--accent-warm);
+  stroke: var(--panel-2);
+  stroke-width: 0.75;
+}
+
+/* ── Remove button ───────────────────────────────────────────────────────── */
+
+.leg-remove-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+
+.leg-remove-btn:hover {
+  color: var(--neg);
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ── Total row ───────────────────────────────────────────────────────────── */
+
+.legs-total-label {
+  text-align: right !important;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-style: italic;
+}
+
+.legs-total-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.legs-total-value.credit {
+  color: var(--pos);
+}
+
+.legs-total-value.debit {
+  color: var(--neg);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .position-builder {
+    padding: 0.7rem;
+  }
+
+  .strategy-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+
+  .strategy-group-label {
+    min-width: auto;
+    text-align: left;
+  }
+
+  .legs-table {
+    font-size: 0.7rem;
+  }
+
+  .legs-table th,
+  .legs-table td {
+    padding: 0.24rem 0.32rem;
+  }
+}
