@@ -335,6 +335,6 @@ app.listen(PORT, () => {
 })
 
 // Catch-all: return index.html for client-side routes
-app.get('*', (_, res) => {
+app.use((_, res) => {
   res.sendFile(path.join(clientDist, 'index.html'))
 })
