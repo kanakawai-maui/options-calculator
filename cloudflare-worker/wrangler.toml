@@ -1,0 +1,30 @@
+name = "yahoo-finance-proxy"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# Optional: restrict the worker to your own account subdomain
+# account_id = "your_cloudflare_account_id"
+
+# --- How to deploy ---
+#
+# Option A — Wrangler CLI (recommended):
+#   1. npm install -g wrangler          (or npx wrangler)
+#   2. wrangler login
+#   3. wrangler deploy                  (from this directory)
+#   4. Copy the printed *.workers.dev URL → set YAHOO_PROXY_URL in Render env
+#
+# Option B — Cloudflare Dashboard (no CLI needed):
+#   1. Go to https://dash.cloudflare.com → Workers & Pages → Create
+#   2. Paste the contents of worker.js into the editor
+#   3. Deploy → copy the URL → set YAHOO_PROXY_URL in Render env
+#
+# --- Optional shared secret ---
+#
+# To prevent other people from using your worker as a free Yahoo proxy,
+# set a secret binding in Cloudflare and a matching env var on your server:
+#
+#   wrangler secret put PROXY_SECRET
+#   (enter any random string, e.g. output of: openssl rand -hex 24)
+#
+# Then set the same value as YAHOO_PROXY_SECRET in your server environment.
+# The server will attach it as the x-proxy-secret header on every request.

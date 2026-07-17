@@ -1,5 +1,43 @@
 require('dotenv').config()
 
+// ---------------------------------------------------------------------------
+// Yahoo Finance proxy — intercepts outbound fetch calls made by yahoo-finance2
+// and reroutes them through a Cloudflare Worker when YAHOO_PROXY_URL is set.
+//
+// This is needed because Yahoo Finance blocks Render free-tier IP ranges.
+// Set YAHOO_PROXY_URL to your deployed *.workers.dev URL to enable the proxy.
+// Set YAHOO_PROXY_SECRET to the matching CF secret binding (optional but
+// recommended to prevent open-proxy abuse).
+// ---------------------------------------------------------------------------
+if (process.env.YAHOO_PROXY_URL) {
+  const proxyBase = process.env.YAHOO_PROXY_URL.replace(/\/$/, '')
+  const proxySecret = process.env.YAHOO_PROXY_SECRET || null
+  const YAHOO_RE = /^https:\/\/(query1|query2)\.finance\.yahoo\.com(\/|$)/
+
+  const _originalFetch = globalThis.fetch
+  globalThis.fetch = function patchedFetch(input, init) {
+    const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    if (urlStr && YAHOO_RE.test(urlStr)) {
+      // Rewrite:  https://query1.finance.yahoo.com/v7/…
+      //       →   https://<proxyBase>/query1.finance.yahoo.com/v7/…
+      const parsed = new URL(urlStr)
+      const rewritten = `${proxyBase}/${parsed.host}${parsed.pathname}${parsed.search}`
+      const headers = new Headers(
+        (init && init.headers) ? init.headers
+          : (input && typeof input === 'object' && input.headers) ? input.headers
+          : {}
+      )
+      if (proxySecret) {
+        headers.set('x-proxy-secret', proxySecret)
+      }
+      return _originalFetch(rewritten, { ...(init || {}), headers })
+    }
+    return _originalFetch(input, init)
+  }
+
+  console.log(`[proxy] Yahoo Finance requests will be routed through ${proxyBase}`)
+}
+
 const path = require('path')
 const express = require('express')
 const cors = require('cors')
