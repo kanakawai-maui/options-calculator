@@ -32,9 +32,89 @@ const ALLOWED_HOSTS = new Set([
   'query2.finance.yahoo.com',
 ])
 
+// Ensure the chains table exists (runs once per Worker instance cold-start)
+async function ensureSchema(db) {
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS chains (
+       ticker     TEXT PRIMARY KEY,
+       data       TEXT NOT NULL,
+       updated_at INTEGER NOT NULL
+     )`
+  ).run()
+}
+
 export default {
   async fetch(request, env) {
-    // --- Optional shared-secret check ---
+    const url = new URL(request.url)
+
+    // -------------------------------------------------------------------------
+    // Cache routes — no proxy-secret required for reads, required for writes
+    // GET  /cache/:ticker  — return stored chain JSON (404 if missing)
+    // POST /cache/:ticker  — upsert chain JSON (requires x-proxy-secret)
+    // -------------------------------------------------------------------------
+    const cacheMatch = url.pathname.match(/^\/cache\/([A-Z0-9.\-]{1,10})$/i)
+    if (cacheMatch) {
+      const ticker = cacheMatch[1].toUpperCase()
+
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, x-proxy-secret',
+          },
+        })
+      }
+
+      if (request.method === 'GET') {
+        if (!env.DB) return new Response('D1 binding not configured', { status: 503 })
+        await ensureSchema(env.DB)
+        const row = await env.DB.prepare(
+          'SELECT data, updated_at FROM chains WHERE ticker = ?'
+        ).bind(ticker).first()
+        if (!row) return new Response('Not found', { status: 404 })
+        return new Response(row.data, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'X-Cache-Updated-At': String(row.updated_at),
+          },
+        })
+      }
+
+      if (request.method === 'POST') {
+        // Writes require the shared secret
+        if (env.PROXY_SECRET) {
+          const incoming = request.headers.get('x-proxy-secret')
+          if (incoming !== env.PROXY_SECRET) {
+            return new Response('Forbidden', { status: 403 })
+          }
+        }
+        if (!env.DB) return new Response('D1 binding not configured', { status: 503 })
+        await ensureSchema(env.DB)
+        let body
+        try {
+          body = await request.text()
+          JSON.parse(body) // validate it's parseable JSON before storing
+        } catch {
+          return new Response('Invalid JSON body', { status: 400 })
+        }
+        await env.DB.prepare(
+          'INSERT OR REPLACE INTO chains (ticker, data, updated_at) VALUES (?, ?, ?)'
+        ).bind(ticker, body, Math.floor(Date.now() / 1000)).run()
+        return new Response(JSON.stringify({ ok: true, ticker }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        })
+      }
+
+      return new Response('Method not allowed', { status: 405 })
+    }
+
+    // -------------------------------------------------------------------------
+    // Yahoo Finance proxy — all other routes
+    // -------------------------------------------------------------------------
+
+    // --- Optional shared-secret check for proxy routes ---
     if (env.PROXY_SECRET) {
       const incoming = request.headers.get('x-proxy-secret')
       if (incoming !== env.PROXY_SECRET) {
@@ -42,7 +122,6 @@ export default {
       }
     }
 
-    const url = new URL(request.url)
 
     // Path format: /<targetHost>/<rest-of-path>
     // e.g. /query1.finance.yahoo.com/v7/finance/options/AAPL?...

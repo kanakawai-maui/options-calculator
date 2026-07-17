@@ -5,6 +5,12 @@ compatibility_date = "2024-09-23"
 # Optional: restrict the worker to your own account subdomain
 # account_id = "your_cloudflare_account_id"
 
+# D1 database binding — option chain cache
+[[d1_databases]]
+binding = "DB"
+database_name = "stock-option-data"
+database_id = "cee3c919-0025-4276-a5f4-7b240c91d092"
+
 # --- How to deploy ---
 #
 # Option A — Wrangler CLI (recommended):
