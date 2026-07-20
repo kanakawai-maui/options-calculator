@@ -18,89 +18,85 @@ export function About() {
       <article className="about-article">
         <header className="about-header">
           <span className="about-tag">About</span>
-          <h1>What is the Options Calculator?</h1>
+          <h1>Options Calculator</h1>
           <p className="about-lead">
-            A free, browser-based tool for learning, analyzing, and stress-testing
-            equity options strategies — no account, no subscription, no catch.
+            A free calculator for understanding how options are priced and how
+            different strategies play out — built for students, self-directed learners,
+            and anyone tired of paying $50/month just to see a payoff diagram.
           </p>
         </header>
 
         <section className="about-section">
-          <h2>What it's for</h2>
+          <h2>What it does</h2>
           <p>
-            Options Calculator is built for traders and students who want to
-            understand how options actually behave — before putting real money at
-            risk. You can:
+            You pick a ticker, load the live option chain, and start building. You can
+            look at a single contract or combine multiple legs into a spread, straddle,
+            condor — whatever you're studying. The tool shows you:
           </p>
           <ul>
-            <li>Pull live option chains for any US equity or ETF</li>
-            <li>Construct multi-leg strategies (spreads, straddles, condors, butterflies, and more)</li>
-            <li>Visualize profit and loss across a full range of underlying prices</li>
-            <li>Study the Greeks (Delta, Gamma, Theta, Vega, Rho) with interactive charts</li>
-            <li>Screen hundreds of tickers by implied volatility, skew, and liquidity</li>
-            <li>Save and compare scenarios to stress-test a trade before you place it</li>
+            <li>The full P&amp;L curve at expiration across a range of prices</li>
+            <li>How Delta, Gamma, Theta, Vega, and Rho behave across the chain</li>
+            <li>What the market's implied volatility is for any strike and expiry</li>
+            <li>How combining legs changes your breakevens and max loss/gain</li>
+            <li>How a position responds when you change spot price, vol, or time</li>
           </ul>
           <p>
-            It is designed to make the math of options transparent — so you can see
-            exactly why a trade makes or loses money under different conditions,
-            not just guess.
+            The point is to make the mechanics visible. Options math is not that
+            complicated once you can see it moving — it just looks complicated when
+            it's hidden behind jargon.
           </p>
         </section>
 
         <section className="about-section">
-          <h2>Data &amp; accuracy</h2>
+          <h2>Where the data comes from</h2>
           <p>
-            Market data is sourced from publicly available financial data providers
-            and is refreshed automatically when you load a ticker. Prices, implied
-            volatility, and the Greeks shown are derived from real-time or near-real-time
-            quotes using standard Black-Scholes calculations.
+            Option chains are fetched from public market data sources when you load
+            a ticker. Prices update automatically. The Greeks and P&amp;L values are
+            calculated in your browser using the Black-Scholes model — standard stuff,
+            the same math covered in any options textbook.
           </p>
           <div className="about-callout about-callout--warn">
-            <strong>Educational purposes only.</strong> While every effort is made to
-            keep data accurate and up to date, there is no guarantee that prices
-            or Greeks shown exactly match what you'd see on a brokerage platform at
-            any given moment. Bid/ask spreads, last-sale latency, and data
-            normalization can cause minor differences. Always confirm prices with
-            your broker before trading.
+            <strong>Heads up on accuracy.</strong> The numbers here are close but not
+            guaranteed to match your broker tick-for-tick. Bid/ask spreads, quote
+            latency, and how different platforms mark mid-prices can all cause small
+            differences. Use this to learn and explore, not to copy exact entry prices.
           </div>
           <p>
-            All calculations — including the P&amp;L heatmap, Greeks, and scenario
-            analysis — are performed locally in your browser using the Black-Scholes
-            model. No trade data or personal information is ever sent to a server.
+            Everything runs in your browser. The backend is just a small proxy that
+            fetches public data — no account is needed and nothing about your session
+            is stored.
           </p>
         </section>
 
         <section className="about-section">
-          <h2>It's free — here's why</h2>
+          <h2>Why it's free</h2>
           <p>
-            Options Calculator is a personal project, built out of frustration with
-            tools that hide basic analysis behind expensive subscriptions or clunky
-            interfaces. The goal is to make professional-grade options analysis
-            accessible to anyone learning the space.
+            This started as a side project because most options tools are either
+            locked behind expensive subscriptions or buried inside broker platforms
+            that want you trading, not learning. Basic payoff diagrams and Greeks
+            charts shouldn't cost money.
           </p>
           <p>
-            There is no premium tier, no paywall, and no hidden cost. The entire
-            tool runs in your browser; the only backend is a lightweight proxy that
-            fetches public market data.
+            There's no premium plan, no trial period, no email required. It's just
+            a tool — open it, use it, close it.
           </p>
         </section>
 
         <section className="about-section">
-          <h2>Not financial advice</h2>
+          <h2>This is not financial advice</h2>
           <p>
-            Everything here — prices, Greeks, insights, strategy suggestions — is
-            for <strong>educational and informational purposes only</strong>. Nothing
-            on this site constitutes a recommendation to buy, sell, or hold any
-            security. Options trading involves substantial risk and is not suitable
-            for all investors.
+            Nothing on this site is a recommendation to buy, sell, or hold anything.
+            Options involve real risk — you can lose the entire amount you put in, and
+            some strategies carry theoretically unlimited downside. The scenarios and
+            examples here are for learning purposes only.
           </p>
           <p>
-            Please consult a qualified financial professional before making any
-            investment decisions. Past performance shown in any scenario or example
-            does not predict future results.
+            If you're making real trading decisions, talk to a financial professional
+            and do your own research. Past results in any example don't predict
+            what happens next.
           </p>
           <p>
-            <Link to="/legal" className="about-link">Read the full legal disclaimer →</Link>
+            <Link to="/legal" className="about-link">Full legal disclaimer →</Link>
           </p>
         </section>
       </article>

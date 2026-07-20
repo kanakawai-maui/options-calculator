@@ -16,18 +16,49 @@ export function Home() {
       </nav>
 
       <section className="home-hero">
-        <div className="home-hero-badge">Free &amp; Educational</div>
+        <div className="home-hero-badge">Free &amp; Open to Everyone</div>
         <h1 className="home-hero-title">
-          Options analysis,<br />
-          <span className="home-hero-accent">no BS.</span>
+          Learn options by<br />
+          <span className="home-hero-accent">doing the math.</span>
         </h1>
         <p className="home-hero-sub">
-          Build multi-leg strategies, visualize P&amp;L heatmaps, explore Greeks, and
-          stress-test scenarios. All in your browser, powered by live market data.
+          A hands-on calculator for understanding how options are priced, how strategies
+          behave under different market conditions, and what the Greeks actually mean —
+          built for students and self-directed learners.
         </p>
         <div className="home-hero-actions">
-          <Link to="/" className="home-btn home-btn--primary">Launch the Calculator</Link>
-          <Link to="/about" className="home-btn home-btn--ghost">Learn more</Link>
+          <Link to="/" className="home-btn home-btn--primary">Open the Calculator</Link>
+          <Link to="/about" className="home-btn home-btn--ghost">How it works</Link>
+        </div>
+      </section>
+
+      <section className="home-concepts">
+        <h2 className="home-concepts-heading">What you can explore</h2>
+        <div className="home-concepts-grid">
+          <div className="home-concept">
+            <span className="home-concept-label">Greeks</span>
+            <p>See how Delta, Gamma, Theta, Vega, and Rho shift across the full price range — not just at one strike.</p>
+          </div>
+          <div className="home-concept">
+            <span className="home-concept-label">P&amp;L at Expiration</span>
+            <p>Plot the payoff curve of any single-leg or multi-leg position and understand exactly where it profits or loses.</p>
+          </div>
+          <div className="home-concept">
+            <span className="home-concept-label">Implied Volatility</span>
+            <p>Read the IV on any contract, compare it to historical vol, and see how the market is pricing uncertainty.</p>
+          </div>
+          <div className="home-concept">
+            <span className="home-concept-label">Time Decay</span>
+            <p>Watch how Theta erodes extrinsic value day by day, and why it accelerates as expiration approaches.</p>
+          </div>
+          <div className="home-concept">
+            <span className="home-concept-label">Multi-leg Strategies</span>
+            <p>Build spreads, straddles, condors, and butterflies leg by leg and see how combining options changes risk.</p>
+          </div>
+          <div className="home-concept">
+            <span className="home-concept-label">Scenario Analysis</span>
+            <p>Change spot price, volatility, or days to expiry and observe how your position responds in real time.</p>
+          </div>
         </div>
       </section>
 
@@ -35,11 +66,31 @@ export function Home() {
         <div className="home-feature">
           <div className="home-feature-icon">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </svg>
+          </div>
+          <h3>No textbook needed</h3>
+          <p>Every concept is shown with live numbers. Adjust a parameter and see the effect instantly — no equations to memorize first.</p>
+        </div>
+        <div className="home-feature">
+          <div className="home-feature-icon">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          </div>
+          <h3>Completely free</h3>
+          <p>No subscription, no account wall, no ads. Real-time market data is fetched directly — just open the tool and start learning.</p>
+        </div>
+        <div className="home-feature">
+          <div className="home-feature-icon">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
           </div>
-          <h3>Live Option Chains</h3>
-          <p>Pulls real-time quotes and implied volatility for any US equity or ETF — no account required.</p>
+          <h3>Real market data</h3>
+          <p>Option chains are pulled live for any US equity or ETF. You learn with the same prices you'd see on a brokerage platform.</p>
         </div>
         <div className="home-feature">
           <div className="home-feature-icon">
@@ -48,29 +99,8 @@ export function Home() {
               <path d="M3 9h18M9 21V9" />
             </svg>
           </div>
-          <h3>P&amp;L Heatmaps</h3>
-          <p>See your full profit and loss profile across price and time — for single legs or complex multi-leg spreads.</p>
-        </div>
-        <div className="home-feature">
-          <div className="home-feature-icon">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v4l3 3" />
-            </svg>
-          </div>
-          <h3>Greeks &amp; Insights</h3>
-          <p>Delta, Gamma, Theta, Vega, and Rho — visualized across the full price range, not just at the current spot.</p>
-        </div>
-        <div className="home-feature">
-          <div className="home-feature-icon">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <h3>Strategy Builder</h3>
-          <p>Prebuilt strategies — straddles, condors, spreads, butterflies — or build your own leg by leg.</p>
+          <h3>Visual P&amp;L heatmaps</h3>
+          <p>Heatmaps show profit and loss across every price level — so you understand the full risk profile, not just the breakeven.</p>
         </div>
         <div className="home-feature">
           <div className="home-feature-icon">
@@ -79,8 +109,8 @@ export function Home() {
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </div>
-          <h3>Ticker Screener</h3>
-          <p>Filter hundreds of tickers by IV rank, skew, volume, and open interest to find the best candidates.</p>
+          <h3>Ticker screener</h3>
+          <p>Filter by IV rank, skew, and liquidity across hundreds of tickers — useful for understanding which markets are "expensive" or "cheap" in vol terms.</p>
         </div>
         <div className="home-feature">
           <div className="home-feature-icon">
@@ -89,16 +119,17 @@ export function Home() {
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </div>
-          <h3>Scenario Manager</h3>
-          <p>Save and compare multiple what-if scenarios side-by-side to simulate a trade before you place it.</p>
+          <h3>Save scenarios</h3>
+          <p>Save multiple setups and compare them side-by-side — great for studying how the same strategy behaves across different underlyings or expiries.</p>
         </div>
       </section>
 
       <section className="home-disclaimer">
         <p>
-          <strong>Educational use only.</strong> All data, calculations, and tools are provided free of charge for
-          learning and analysis. Nothing here constitutes financial advice. Always do your own research before trading.{' '}
-          <Link to="/about" className="home-inline-link">Learn more about how the data works →</Link>
+          <strong>For learning, not trading advice.</strong> All data and calculations are provided free of charge.
+          Market prices shown are near-real-time and may differ slightly from your broker. Nothing here is a
+          recommendation to buy or sell any security.{' '}
+          <Link to="/about" className="home-inline-link">Read more about the data →</Link>
         </p>
       </section>
 
