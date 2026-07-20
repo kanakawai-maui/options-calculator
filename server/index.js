@@ -41,14 +41,53 @@ if (process.env.YAHOO_PROXY_URL) {
 const path = require('path')
 const express = require('express')
 const cors = require('cors')
+const helmet = require('helmet')
+const rateLimit = require('express-rate-limit')
 const YahooFinance = require('yahoo-finance2').default
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] })
 
 const app = express()
 const PORT = Number(process.env.PORT || 4000)
 
-app.use(cors())
-app.use(express.json())
+// Trust the first proxy hop (Render, Railway, etc.) so rate limiting uses the
+// real client IP from X-Forwarded-For rather than the proxy's address.
+app.set('trust proxy', 1)
+
+// Security headers
+app.use(helmet())
+
+// CORS — restrict to the deployed frontend origin(s); falls back to localhost for dev
+const allowedOrigins = process.env.ALLOWED_ORIGIN
+  ? process.env.ALLOWED_ORIGIN.split(',').map((s) => s.trim())
+  : ['http://localhost:5173', 'http://localhost:4000']
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, server-to-server) only outside production
+    if (!origin) return callback(null, process.env.NODE_ENV !== 'production')
+    callback(null, allowedOrigins.includes(origin))
+  },
+}))
+
+app.use(express.json({ limit: '10kb' }))
+
+// ─── Rate limiters ───────────────────────────────────────────────────────────
+const makeLimit = (max, windowMs = 60_000) =>
+  rateLimit({
+    windowMs,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+  })
+
+// Global fallback — covers any route not given a specific limiter below
+app.use(makeLimit(60))
+// Per-route limits (applied before the route handlers)
+app.use('/api/screener',      makeLimit(3))   // each call spawns ≤120 upstream reqs
+app.use('/api/option-chain',  makeLimit(20))
+app.use('/api/search',        makeLimit(30))
+app.use('/api/market-status', makeLimit(10))
+// ─────────────────────────────────────────────────────────────────────────────
 
 app.get('/api/health', (_, response) => {
   response.json({ ok: true })
@@ -75,7 +114,8 @@ app.get('/api/market-status', async (_, response) => {
       end: regular?.end ? toUnixSeconds(regular.end) : null,
     })
   } catch (err) {
-    response.status(500).json({ error: err?.message || 'market-status failed' })
+    console.error('[market-status]', err?.message || err)
+    response.status(500).json({ error: 'Market status unavailable.' })
   }
 })
 
@@ -253,7 +293,7 @@ async function screenTicker(symbol, targetDTE) {
 }
 
 app.post('/api/screener', async (request, response) => {
-  const targetDTE = Number(request.body?.targetDTE) || 30
+  const targetDTE = Math.min(Math.max(Number(request.body?.targetDTE) || 30, 1), 365)
   const rawTickers =
     Array.isArray(request.body?.tickers) && request.body.tickers.length > 0
       ? request.body.tickers
@@ -306,9 +346,8 @@ app.get('/api/search', async (request, response) => {
       }))
     response.json({ results })
   } catch (error) {
-    response
-      .status(500)
-      .json({ results: [], error: error instanceof Error ? error.message : 'Search failed' })
+    console.error('[search]', error?.message || error)
+    response.status(500).json({ results: [], error: 'Search unavailable.' })
   }
 })
 
@@ -521,7 +560,13 @@ function generateFallbackChain(ticker, requestedExpiration) {
 
 app.get('/api/option-chain', async (request, response) => {
   const ticker = String(request.query.ticker || '').trim().toUpperCase()
-  const expiration = request.query.expiration ? Number(request.query.expiration) : null
+  // Validate expiration is a plausible unix timestamp (now → +2 years)
+  const _nowSec = Math.floor(Date.now() / 1000)
+  const _rawExp = request.query.expiration ? Number(request.query.expiration) : null
+  const expiration =
+    _rawExp && Number.isFinite(_rawExp) && _rawExp > _nowSec && _rawExp < _nowSec + 2 * 365 * 86400
+      ? _rawExp
+      : null
 
   if (!ticker) {
     response.status(400).json({ error: 'Missing required query: ticker' })

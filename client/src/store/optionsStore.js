@@ -434,7 +434,7 @@ export const useOptionsStore = create(
     }
 
     const newLegs = (strategies[strategyName] ?? []).filter(Boolean)
-    set((state) => ({ legs: [...state.legs, ...newLegs] }))
+    set({ legs: newLegs })
   },
   }),
   {

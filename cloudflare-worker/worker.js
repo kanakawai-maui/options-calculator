@@ -90,17 +90,6 @@ export default {
       if (!env.DB) return new Response('D1 binding not configured', { status: 503 })
       await ensureSchema(env.DB)
 
-      if (url.pathname === '/access/hot' && request.method === 'GET') {
-        const since = Number(url.searchParams.get('since')) || (Math.floor(Date.now() / 1000) - 86400)
-        const { results } = await env.DB.prepare(
-          `SELECT ticker, last_accessed, access_count FROM ticker_accesses
-           WHERE last_accessed > ? ORDER BY last_accessed DESC`
-        ).bind(since).all()
-        return new Response(JSON.stringify({ tickers: results ?? [] }), {
-          headers: { 'Content-Type': 'application/json', ...CORS },
-        })
-      }
-
       const accessMatch = url.pathname.match(/^\/access\/([A-Z0-9.\-]{1,10})$/i)
       if (accessMatch && request.method === 'POST') {
         const ticker = accessMatch[1].toUpperCase()
@@ -188,8 +177,14 @@ export default {
     }
 
     const targetUrl = `https://${targetHost}${targetPath}${url.search}`
-    const proxyHeaders = new Headers(request.headers)
-    proxyHeaders.delete('x-proxy-secret')
+    // Only forward a safe allowlist of headers — never forward cookies, auth, or
+    // arbitrary client headers to Yahoo's servers.
+    const SAFE_PROXY_HEADERS = ['accept', 'accept-encoding', 'accept-language', 'content-type']
+    const proxyHeaders = new Headers()
+    for (const name of SAFE_PROXY_HEADERS) {
+      const val = request.headers.get(name)
+      if (val) proxyHeaders.set(name, val)
+    }
     proxyHeaders.set('User-Agent', 'Mozilla/5.0 (compatible; yahoo-finance2; +https://github.com/gadicc/node-yahoo-finance2)')
 
     let response
