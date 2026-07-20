@@ -218,3 +218,19 @@
   border-color: var(--neg, #f87171);
   color: var(--neg, #f87171);
 }
+
+/* Two-click delete: confirmation state widens the button and colors it red. */
+.sm-delete-btn--confirm {
+  width: auto;
+  padding: 0 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--neg, #f87171);
+  border-color: var(--neg, #f87171);
+  color: #0a0e1a;
+}
+.sm-delete-btn--confirm:hover {
+  opacity: 0.9;
+  color: #0a0e1a;
+}

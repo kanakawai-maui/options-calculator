@@ -11,9 +11,11 @@ import { AggregateView } from './components/AggregateView'
 import { GreeksPanel } from './components/GreeksPanel'
 import { TickerScreener } from './components/TickerScreener'
 import { Legal } from './components/Legal'
+import { PanelEmptyState } from './components/EmptyState'
+import './components/EmptyState.css'
 import './components/Legal.css'
 
-function Tip({ text }) {
+function Tip({ text, placement = 'top' }) {
   const [open, setOpen] = useState(false)
   const [offset, setOffset] = useState(0)
   const btnRef = useRef(null)
@@ -51,7 +53,7 @@ function Tip({ text }) {
       </button>
       {open && (
         <span
-          className="tip-bubble"
+          className={`tip-bubble tip-bubble--${placement}`}
           role="tooltip"
           style={{
             transform: `translateX(calc(-50% + ${offset}px))`,
@@ -159,12 +161,24 @@ function App() {
   ] = useState(String(30))
   const [screenerOpen, setScreenerOpen] = useState(false)
   const [controlsOpen, setControlsOpen] = useState(true)
+  // Mobile-only tab. On desktop the sidebar + main-column layout is used and
+  // this value is ignored. 'setup' = Contract Selector / Position / Scenarios,
+  // 'analysis' = the output sections.
+  const [mobileTab, setMobileTab] = useState('setup')
   const SIDEBAR_BREAKPOINT = 1200
   const SIDEBAR_MIN = 320
-  const SIDEBAR_DEFAULT = 740
+  const SIDEBAR_MAX = 900
+  const SIDEBAR_DEFAULT = 420
+  const LS_SIDEBAR_WIDTH_KEY = 'ops_sidebar_width'
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= SIDEBAR_BREAKPOINT)
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= SIDEBAR_BREAKPOINT)
-  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT)
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem(LS_SIDEBAR_WIDTH_KEY))
+      if (Number.isFinite(saved) && saved >= SIDEBAR_MIN && saved <= SIDEBAR_MAX) return saved
+    } catch {}
+    return SIDEBAR_DEFAULT
+  })
 
   // Keep isDesktop in sync with window width; auto open/close sidebar
   // unless the user has manually toggled it.
@@ -188,7 +202,7 @@ function App() {
     resizeDragRef.current = { startX: e.clientX, startWidth: sidebarWidth }
     function onMove(ev) {
       if (!resizeDragRef.current) return
-      const maxW = Math.floor(window.innerWidth * 0.5)
+      const maxW = Math.min(SIDEBAR_MAX, Math.floor(window.innerWidth * 0.5))
       const next = Math.min(maxW, Math.max(SIDEBAR_MIN, resizeDragRef.current.startWidth + ev.clientX - resizeDragRef.current.startX))
       setSidebarWidth(next)
     }
@@ -196,9 +210,19 @@ function App() {
       resizeDragRef.current = null
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      try {
+        localStorage.setItem(LS_SIDEBAR_WIDTH_KEY, String(sidebarWidth))
+      } catch {}
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+  }, [sidebarWidth])
+
+  // Persist whenever sidebar width changes (covers state updates after drag ends)
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_SIDEBAR_WIDTH_KEY, String(sidebarWidth))
+    } catch {}
   }, [sidebarWidth])
 
   const {
@@ -225,6 +249,7 @@ function App() {
     setExpirationDate,
     setStrike,
     fetchChain,
+    addCurrentLeg,
   } = useOptionsStore()
 
   // When legs are present use the full position; otherwise preview the single-leg selection
@@ -259,6 +284,11 @@ function App() {
   const hasMixedTickers = positionTickers.length > 1
   const canAggregate = positionTickers.length === 2
   const [aggregateView, setAggregateView] = useState(false)
+
+  // Preview mode: user has selected a contract but not yet added it as a leg.
+  // The activelegs useMemo silently promotes the selection into a phantom leg;
+  // this flag lets us surface the state so users know to click "+ Add to Position".
+  const isPreviewMode = legs.length === 0 && activelegs.length > 0
 
   const [sectionOrder, updateSectionOrder] = useSectionOrder()
   const dragItemIdx = useRef(null)
@@ -432,13 +462,13 @@ function App() {
     <>
       <section className="controls-panel">
         <div className="controls-panel-header">
-          <span className="controls-panel-title">Parameters</span>
+          <span className="controls-panel-title">Contract Selector</span>
           <button
             type="button"
             className={`panel-collapse-btn${controlsOpen ? '' : ' collapsed'}`}
             onClick={() => setControlsOpen((o) => !o)}
             aria-expanded={controlsOpen}
-            aria-label={controlsOpen ? 'Collapse parameters' : 'Expand parameters'}
+            aria-label={controlsOpen ? 'Collapse contract selector' : 'Expand contract selector'}
           >
             <svg viewBox="0 0 10 6" width="10" height="6" fill="currentColor" aria-hidden="true">
               <path d="M0 0L5 6L10 0z" />
@@ -451,7 +481,10 @@ function App() {
               <div className="field field--full">
                 <span className="label-row">
                   Ticker
-                  <Tip text="Search by ticker symbol (AAPL) or company name. Select a result to load live chains automatically. Use the Screener to filter by IV, skew, liquidity, and positioning across a universe of tickers." />
+                  <Tip
+                    placement="bottom"
+                    text="Search by ticker symbol (AAPL) or company name. Select a result to load live chains automatically. Use the Screener to filter by IV, skew, liquidity, and positioning across a universe of tickers."
+                  />
                 </span>
                 <div className="ticker-row">
                   <TickerSearch value={ticker} onSelect={setTicker} />
@@ -518,8 +551,8 @@ function App() {
 
               <label className="field">
                 <span className="label-row">
-                  Expected Move ±%
-                  <Tip text="Sets the price range displayed in the P/L graph and heatmap. For example 30 means ±30% around the current spot price." />
+                  Chart Range ±%
+                  <Tip text="Controls the visible price range on the P/L, Greeks, and heatmap charts. For example 30 means ±30% around the current spot price. This is a display setting only — it does not affect probability or P/L math." />
                 </span>
                 <input
                   type="number" min="5" max="200" step="1"
@@ -554,6 +587,37 @@ function App() {
                 <span className="meta-label">Contracts</span>
                 <span className="meta-value">{quantity}</span>
               </div>
+            </div>
+
+            <div className="cs-add-row">
+              <button
+                type="button"
+                className="cs-add-btn"
+                disabled={!selectedContract?.markPrice}
+                onClick={() => addCurrentLeg()}
+                title={
+                  selectedContract?.markPrice
+                    ? 'Add this contract as a leg to your position'
+                    : 'Select a contract first'
+                }
+              >
+                + Add to Position
+              </button>
+              {selectedContract?.markPrice ? (
+                <p className="cs-add-hint">
+                  Will add{' '}
+                  <strong>
+                    {positionSide === 'buy' ? 'Long' : 'Short'}{' '}
+                    {optionType === 'call' ? 'Call' : 'Put'} ${selectedContract.strike}
+                  </strong>{' '}
+                  @ ${selectedContract.markPrice?.toFixed(2)}
+                </p>
+              ) : (
+                <p className="cs-add-hint cs-add-hint--muted">
+                  Pick an expiration and strike, then click{' '}
+                  <strong>Add to Position</strong>.
+                </p>
+              )}
             </div>
 
             {error ? <p className="error">{error}</p> : null}
@@ -636,8 +700,91 @@ function App() {
 
         <main className="main-content">
           <div className="layout">
-            {!isDesktop && configPanels}
-            {sectionOrder.map((id, idx) => {
+            {!isDesktop && (
+              <div className="mobile-tabs" role="tablist" aria-label="Main sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mobileTab === 'setup'}
+                  className={`mobile-tab${mobileTab === 'setup' ? ' mobile-tab--active' : ''}`}
+                  onClick={() => setMobileTab('setup')}
+                >
+                  Setup
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mobileTab === 'analysis'}
+                  className={`mobile-tab${mobileTab === 'analysis' ? ' mobile-tab--active' : ''}`}
+                  onClick={() => setMobileTab('analysis')}
+                >
+                  Analysis
+                </button>
+                <button
+                  type="button"
+                  className="mobile-tab mobile-tab--screener"
+                  onClick={() => setScreenerOpen(true)}
+                  title="Open ticker screener"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  Screener
+                </button>
+              </div>
+            )}
+            {!isDesktop && mobileTab === 'setup' && configPanels}
+            {(isDesktop || mobileTab === 'analysis') && (() => {
+              // Output-area gate: show a friendly placeholder if we can't yet
+              // render any of the analysis panels. Panels themselves also
+              // guard, but a single top-level state prevents a blank column.
+              const trimmedTicker = (ticker || '').trim()
+              if (!trimmedTicker) {
+                return (
+                  <PanelEmptyState
+                    title="Pick a ticker to get started"
+                    hint="Search a symbol (like AAPL) or open the Screener to filter across a universe of tickers by IV, skew, and liquidity."
+                    action={{
+                      label: 'Open Screener',
+                      onClick: () => setScreenerOpen(true),
+                    }}
+                  />
+                )
+              }
+              if (error) {
+                return (
+                  <PanelEmptyState
+                    variant="error"
+                    title="Couldn't load option chain"
+                    hint={error}
+                    action={{ label: 'Retry', onClick: () => fetchChain() }}
+                  />
+                )
+              }
+              if (loading && (!chainData || !spotPrice)) {
+                return <PanelEmptyState variant="loading" />
+              }
+              return null
+            })()}
+            {(isDesktop || mobileTab === 'analysis') && isPreviewMode && (
+              <div className="preview-banner" role="status">
+                <span className="preview-banner-badge">Preview</span>
+                <span className="preview-banner-text">
+                  Showing a single-contract preview. Click{' '}
+                  <strong>+ Add to Position</strong> to lock it in and build a
+                  multi-leg strategy.
+                </span>
+                <button
+                  type="button"
+                  className="preview-banner-cta"
+                  onClick={() => addCurrentLeg()}
+                >
+                  Add to Position
+                </button>
+              </div>
+            )}
+            {(isDesktop || mobileTab === 'analysis') && ticker && !error && sectionOrder.map((id, idx) => {
               const dragHandle = (
                 <div
                   className="drag-handle"

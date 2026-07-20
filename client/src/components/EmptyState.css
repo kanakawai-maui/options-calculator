@@ -1,0 +1,138 @@
+/* PanelEmptyState — placeholder used by analysis panels when data is not yet
+   available (no ticker, no legs, loading, or error). Kept visually minimal so
+   it doesn't compete with real charts. */
+
+.panel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  padding: 1.25rem 1rem;
+  background: var(--panel);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+}
+
+.panel-empty--compact {
+  min-height: 80px;
+  padding: 0.75rem 1rem;
+}
+
+.panel-empty--error {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.05);
+  color: #fca5a5;
+}
+
+.panel-empty-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 360px;
+  text-align: center;
+}
+
+.panel-empty-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.panel-empty--error .panel-empty-title {
+  color: #fecaca;
+}
+
+.panel-empty-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.panel-empty--error .panel-empty-hint {
+  color: #fca5a5;
+}
+
+.panel-empty-action {
+  margin-top: 0.35rem;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: #0a0e1a;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.panel-empty-action:hover { opacity: 0.85; }
+.panel-empty-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.25);
+}
+
+/* ─── Loading skeleton ────────────────────────────────────────────────────── */
+
+.panel-empty--loading {
+  border-style: solid;
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.panel-empty-skeleton {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skel-bar {
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--panel-2) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    var(--panel-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skel-pulse 1.4s ease-in-out infinite;
+}
+.skel-bar--sm { width: 30%; }
+.skel-bar--lg { width: 55%; }
+.skel-chart {
+  margin-top: 0.35rem;
+  height: 100px;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    var(--panel-2) 0%,
+    rgba(255, 255, 255, 0.03) 50%,
+    var(--panel-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skel-pulse 1.4s ease-in-out infinite;
+}
+@keyframes skel-pulse {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Reduced motion: freeze the pulse */
+@media (prefers-reduced-motion: reduce) {
+  .skel-bar, .skel-chart { animation: none; }
+}
+
+.panel-empty-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

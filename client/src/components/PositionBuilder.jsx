@@ -9,76 +9,117 @@ const STRATEGIES = [
     label: 'Long Straddle',
     desc: 'Buy ATM call + buy ATM put — profits from large moves either direction',
     group: 'Volatility',
+    traits: { direction: 'either', risk: 'defined', timeframe: 'short' },
   },
   {
     id: 'short-straddle',
     label: 'Short Straddle',
     desc: 'Sell ATM call + sell ATM put — collects premium when price stays flat',
     group: 'Volatility',
+    traits: { direction: 'sideways', risk: 'undefined', timeframe: 'short' },
   },
   {
     id: 'long-strangle',
     label: 'Long Strangle',
     desc: 'Buy OTM call + buy OTM put — cheaper than straddle, needs bigger move',
     group: 'Volatility',
+    traits: { direction: 'either', risk: 'defined', timeframe: 'short' },
   },
   {
     id: 'short-strangle',
     label: 'Short Strangle',
     desc: 'Sell OTM call + sell OTM put — wider profit zone than short straddle',
     group: 'Volatility',
+    traits: { direction: 'sideways', risk: 'undefined', timeframe: 'short' },
   },
   {
     id: 'iron-condor',
     label: 'Iron Condor',
     desc: 'Sell OTM call & put, buy further OTM wings — defined-risk range strategy',
     group: 'Condors',
+    traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
   },
   {
     id: 'iron-butterfly',
     label: 'Iron Butterfly',
     desc: 'Sell ATM call & put, buy OTM wings — higher premium, narrower profit zone',
     group: 'Condors',
+    traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
   },
   {
     id: 'bull-call-spread',
     label: 'Bull Call Spread',
     desc: 'Buy ATM call + sell OTM call — debit spread, profits when stock rises',
     group: 'Spreads',
+    traits: { direction: 'up', risk: 'defined', timeframe: 'short' },
   },
   {
     id: 'bear-put-spread',
     label: 'Bear Put Spread',
     desc: 'Buy ATM put + sell OTM put — debit spread, profits when stock falls',
     group: 'Spreads',
+    traits: { direction: 'down', risk: 'defined', timeframe: 'short' },
   },
   {
     id: 'bull-put-spread',
     label: 'Bull Put Spread',
     desc: 'Sell ATM put + buy OTM put — credit spread, profits when stock stays up',
     group: 'Spreads',
+    traits: { direction: 'up', risk: 'defined', timeframe: 'short' },
   },
   {
     id: 'bear-call-spread',
     label: 'Bear Call Spread',
     desc: 'Sell ATM call + buy OTM call — credit spread, profits when stock stays down',
     group: 'Spreads',
+    traits: { direction: 'down', risk: 'defined', timeframe: 'short' },
   },
   {
     id: 'call-calendar',
     label: 'Call Calendar',
     desc: 'Sell near-term ATM call + buy far-term ATM call — profits from time decay and low movement',
     group: 'Calendar',
+    traits: { direction: 'sideways', risk: 'defined', timeframe: 'long' },
   },
   {
     id: 'put-calendar',
     label: 'Put Calendar',
     desc: 'Sell near-term ATM put + buy far-term ATM put — profits from time decay and low movement',
     group: 'Calendar',
+    traits: { direction: 'sideways', risk: 'defined', timeframe: 'long' },
   },
 ]
 
 const GROUPS = ['Volatility', 'Condors', 'Spreads', 'Calendar']
+
+const FINDER_GROUPS = [
+  {
+    id: 'direction',
+    label: 'Direction',
+    options: [
+      { id: 'up', label: 'Up' },
+      { id: 'down', label: 'Down' },
+      { id: 'sideways', label: 'Sideways' },
+      { id: 'either', label: 'Big move (either)' },
+    ],
+  },
+  {
+    id: 'risk',
+    label: 'Risk',
+    options: [
+      { id: 'defined', label: 'Defined' },
+      { id: 'undefined', label: 'Undefined' },
+    ],
+  },
+  {
+    id: 'timeframe',
+    label: 'Timeframe',
+    options: [
+      { id: 'short', label: 'Short (<30d)' },
+      { id: 'long', label: 'Long (30d+)' },
+    ],
+  },
+]
 
 function formatExpDate(exp) {
   if (!exp) return '--'
@@ -270,6 +311,15 @@ export function PositionBuilder() {
   })()
   const hasMixedTickers = positionTickers.length > 1
   const [open, setOpen] = useState(true)
+  // Strategy Finder filter state — each key is a FINDER_GROUPS id.
+  // A null value means "any" for that dimension.
+  const [finder, setFinder] = useState({ direction: null, risk: null, timeframe: null })
+  const finderActive = Object.values(finder).some((v) => v != null)
+  const strategyMatches = (s) => {
+    if (!finderActive) return true
+    return Object.entries(finder).every(([k, v]) => v == null || s.traits?.[k] === v)
+  }
+  const clearFinder = () => setFinder({ direction: null, risk: null, timeframe: null })
 
   return (
     <section className="position-builder">
@@ -313,7 +363,42 @@ export function PositionBuilder() {
       <>
       {/* Strategy templates */}
       <div className="pb-strategies">
-        <div className="pb-section-label">Quick Strategies</div>
+        <div className="pb-section-label pb-section-label--row">
+          <span>Quick Strategies</span>
+          {finderActive && (
+            <button
+              type="button"
+              className="pb-finder-clear"
+              onClick={clearFinder}
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
+        <div className="pb-finder" role="group" aria-label="Strategy finder">
+          <span className="pb-finder-lead">Find by:</span>
+          {FINDER_GROUPS.map((g) => (
+            <div key={g.id} className="pb-finder-group" aria-label={g.label}>
+              <span className="pb-finder-group-label">{g.label}</span>
+              <div className="pb-finder-chips">
+                {g.options.map((opt) => {
+                  const active = finder[g.id] === opt.id
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={`pb-finder-chip${active ? ' pb-finder-chip--active' : ''}`}
+                      onClick={() => setFinder((f) => ({ ...f, [g.id]: active ? null : opt.id }))}
+                      aria-pressed={active}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
         {!hasChain && (
           <p className="pb-no-chain">Load a ticker and option chain first to enable strategies.</p>
         )}
@@ -322,17 +407,20 @@ export function PositionBuilder() {
             <div key={group} className="strategy-group">
               <span className="strategy-group-label">{group}</span>
               <div className="strategy-btn-row">
-                {STRATEGIES.filter((s) => s.group === group).map((s) => (
-                  <button
-                    key={s.id}
-                    className="strategy-btn"
-                    title={s.desc}
-                    disabled={!hasChain}
-                    onClick={() => applyStrategy(s.id)}
-                  >
-                    {s.label}
-                  </button>
-                ))}
+                {STRATEGIES.filter((s) => s.group === group).map((s) => {
+                  const dim = finderActive && !strategyMatches(s)
+                  return (
+                    <button
+                      key={s.id}
+                      className={`strategy-btn${dim ? ' strategy-btn--dim' : ''}`}
+                      title={s.desc}
+                      disabled={!hasChain}
+                      onClick={() => applyStrategy(s.id)}
+                    >
+                      {s.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           ))}
@@ -404,6 +492,7 @@ export function PositionBuilder() {
                   <th>Type</th>
                   <th>Strike</th>
                   <th>Premium</th>
+                  <th>IV</th>
                   <th>Qty</th>
                   <th>Expiry</th>
                   <th>Payoff</th>
@@ -452,6 +541,24 @@ export function PositionBuilder() {
                       })()}
                     </td>
                     <td>${leg.markPrice.toFixed(2)}</td>
+                    <td>
+                      <span className="leg-iv-cell">
+                        <input
+                          type="number"
+                          className="leg-iv-input"
+                          value={((leg.impliedVolatility || 0.25) * 100).toFixed(1)}
+                          min={0.1}
+                          max={999}
+                          step={0.1}
+                          onChange={(e) => {
+                            const iv = Math.max(0.001, parseFloat(e.target.value) || 0.25) / 100
+                            updateLeg(leg.id, { impliedVolatility: iv })
+                          }}
+                          aria-label={`IV for leg ${i + 1}`}
+                        />
+                        <span className="leg-iv-suffix">%</span>
+                      </span>
+                    </td>
                     <td>
                       <input
                         type="number"
@@ -502,7 +609,7 @@ export function PositionBuilder() {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={8} className="legs-total-label">
+                  <td colSpan={9} className="legs-total-label">
                     Net {netPremium >= 0 ? 'Credit Received' : 'Debit Paid'} (position cost × 100 shares/contract)
                   </td>
                   <td className={`legs-total-value ${netPremium >= 0 ? 'credit' : 'debit'}`}>

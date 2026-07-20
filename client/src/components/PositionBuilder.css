@@ -110,6 +110,7 @@
   align-items: center;
   gap: 0.55rem;
   flex-wrap: wrap;
+  flex-direction: column;
 }
 
 .strategy-group-label {
@@ -124,6 +125,7 @@
 }
 
 .strategy-btn-row {
+  justify-content: center;
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem;
@@ -150,6 +152,97 @@
 .strategy-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Dimmed by Strategy Finder — still clickable so users can explore. */
+.strategy-btn--dim:not(:disabled) {
+  opacity: 0.3;
+}
+.strategy-btn--dim:not(:disabled):hover {
+  opacity: 1;
+}
+
+/* ── Section label with trailing action (used by Strategy Finder clear) ─── */
+.pb-section-label--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.pb-finder-clear {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.pb-finder-clear:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+/* ── Strategy Finder ─────────────────────────────────────────────────────── */
+.pb-finder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  margin: 0.35rem 0 0.65rem;
+  padding: 0.55rem 0.65rem;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.pb-finder-lead {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pb-finder-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.pb-finder-group-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.pb-finder-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.pb-finder-chip {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.pb-finder-chip:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.pb-finder-chip--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0a0e1a;
+}
+.pb-finder-chip--active:hover {
+  color: #0a0e1a;
 }
 
 /* ── Manual add actions ──────────────────────────────────────────────────── */

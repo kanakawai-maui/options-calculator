@@ -73,7 +73,7 @@
 
 :root {
   --header-h: 52px;
-  --sidebar-w: 740px;
+  --sidebar-w: 420px;
 }
 
 .app-shell {
@@ -342,7 +342,6 @@ h1 {
 
 .tip-bubble {
   position: absolute;
-  bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -362,14 +361,30 @@ h1 {
   letter-spacing: 0;
 }
 
+.tip-bubble--top {
+  bottom: calc(100% + 6px);
+}
+
+.tip-bubble--bottom {
+  top: calc(100% + 6px);
+}
+
 .tip-bubble::after {
   content: '';
   position: absolute;
-  top: 100%;
   left: var(--arrow-left, 50%);
   transform: translateX(-50%);
   border: 5px solid transparent;
+}
+
+.tip-bubble--top::after {
+  top: 100%;
   border-top-color: var(--panel-3);
+}
+
+.tip-bubble--bottom::after {
+  bottom: 100%;
+  border-bottom-color: var(--panel-3);
 }
 
 /* Inputs / selects / buttons */
@@ -464,6 +479,168 @@ button:disabled {
 .meta-value.dim {
   color: var(--text-muted);
   font-weight: 500;
+}
+
+/* ─── Contract Selector: primary Add to Position CTA ─────────────────────── */
+
+.cs-add-row {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.cs-add-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: #0a0e1a;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  transition: opacity 0.12s, transform 0.05s;
+  align-self: flex-start;
+}
+.cs-add-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.cs-add-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.cs-add-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: var(--panel-2);
+  color: var(--text-dim);
+}
+.cs-add-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.25);
+}
+
+.cs-add-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.cs-add-hint strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.cs-add-hint--muted {
+  color: var(--text-dim);
+}
+
+/* ─── Preview-mode banner ────────────────────────────────────────────────── */
+
+.preview-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(76, 201, 240, 0.08);
+  border: 1px solid rgba(76, 201, 240, 0.35);
+  border-radius: var(--radius-lg);
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.35;
+}
+.preview-banner-badge {
+  flex-shrink: 0;
+  background: var(--accent);
+  color: #0a0e1a;
+  font-family: var(--mono-font);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  line-height: 1;
+}
+.preview-banner-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-muted);
+}
+.preview-banner-text strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.preview-banner-cta {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.preview-banner-cta:hover {
+  background: var(--accent);
+  color: #0a0e1a;
+}
+@media (max-width: 640px) {
+  .preview-banner { flex-wrap: wrap; }
+  .preview-banner-cta { width: 100%; }
+}
+
+/* ─── Mobile tabs (< 1200px) ─────────────────────────────────────────────── */
+
+.mobile-tabs {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 50;
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  margin: -0.75rem -0.75rem 0.25rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.mobile-tab {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  padding: 0.45rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.mobile-tab:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+.mobile-tab--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0a0e1a;
+}
+.mobile-tab--active:hover {
+  color: #0a0e1a;
+}
+.mobile-tab--screener {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.65rem;
+}
+.mobile-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.25);
 }
 
 .error {

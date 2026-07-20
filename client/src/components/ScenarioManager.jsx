@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOptionsStore } from '../store/optionsStore'
 import './ScenarioManager.css'
 
@@ -7,18 +7,47 @@ function formatDate(ms) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function formatShortDate(ms) {
+  const d = new Date(ms)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+// Derive a default save name from the current working position.
+// Falls back to "Untitled — MMM D" when there are no legs.
+function suggestScenarioName({ legs, ticker }) {
+  if (!legs || legs.length === 0) {
+    return `Untitled — ${formatShortDate(Date.now())}`
+  }
+  const symbols = Array.from(new Set(legs.map((l) => (l.ticker || '').toUpperCase()).filter(Boolean)))
+  const symbolPart = symbols.length > 0 ? symbols.join('/') : (ticker || '').toUpperCase() || 'Position'
+  return `${symbolPart} — ${legs.length}-leg — ${formatShortDate(Date.now())}`
+}
+
 export function ScenarioManager() {
   const [open, setOpen] = useState(true)
   const [saveName, setSaveName] = useState('')
   const [renamingId, setRenamingId] = useState(null)
   const [renameValue, setRenameValue] = useState('')
   const [loadedId, setLoadedId] = useState(null)
+  // Two-click delete: first click primes deletion, second click confirms.
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const confirmTimerRef = useRef(null)
 
-  const { scenarios, saveScenario, loadScenario, deleteScenario, renameScenario, legs } =
+  const { scenarios, saveScenario, loadScenario, deleteScenario, renameScenario, legs, ticker } =
     useOptionsStore()
 
+  const suggestedName = useMemo(
+    () => suggestScenarioName({ legs, ticker }),
+    [legs, ticker],
+  )
+
+  useEffect(() => () => {
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current)
+  }, [])
+
   const handleSave = () => {
-    saveScenario(saveName)
+    const name = saveName.trim() || suggestedName
+    saveScenario(name)
     setSaveName('')
   }
 
@@ -26,6 +55,18 @@ export function ScenarioManager() {
     loadScenario(id)
     setLoadedId(id)
     setTimeout(() => setLoadedId(null), 1500)
+  }
+
+  const handleDeleteClick = (id) => {
+    if (confirmDeleteId === id) {
+      deleteScenario(id)
+      setConfirmDeleteId(null)
+      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current)
+      return
+    }
+    setConfirmDeleteId(id)
+    if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current)
+    confirmTimerRef.current = setTimeout(() => setConfirmDeleteId(null), 3000)
   }
 
   const handleRenameCommit = (id) => {
@@ -65,7 +106,7 @@ export function ScenarioManager() {
             <input
               className="sm-name-input"
               type="text"
-              placeholder="Name this scenario…"
+              placeholder={suggestedName}
               value={saveName}
               maxLength={60}
               onChange={(e) => setSaveName(e.target.value)}
@@ -76,7 +117,7 @@ export function ScenarioManager() {
               className="sm-save-btn"
               onClick={handleSave}
               disabled={legs.length === 0}
-              title={legs.length === 0 ? 'Add at least one leg before saving' : 'Save scenario'}
+              title={legs.length === 0 ? 'Add at least one leg before saving' : `Save as "${saveName.trim() || suggestedName}"`}
             >
               Save
             </button>
@@ -131,11 +172,12 @@ export function ScenarioManager() {
                     </button>
                     <button
                       type="button"
-                      className="sm-delete-btn"
-                      onClick={() => deleteScenario(s.id)}
-                      title="Delete scenario"
+                      className={`sm-delete-btn${confirmDeleteId === s.id ? ' sm-delete-btn--confirm' : ''}`}
+                      onClick={() => handleDeleteClick(s.id)}
+                      title={confirmDeleteId === s.id ? 'Click again to confirm delete' : 'Delete scenario'}
+                      aria-label={confirmDeleteId === s.id ? 'Confirm delete' : 'Delete scenario'}
                     >
-                      ✕
+                      {confirmDeleteId === s.id ? 'Confirm?' : '✕'}
                     </button>
                   </div>
                 </li>

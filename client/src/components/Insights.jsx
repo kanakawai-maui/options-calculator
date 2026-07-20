@@ -42,20 +42,50 @@ function SingleTickerBadge({ ticker }) {
 
 function InfoHover({ text }) {
   const [visible, setVisible] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const ref = useRef(null)
+
+  const handleOpen = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      const bubbleWidth = 230
+      const margin = 8
+      const centerX = rect.left + rect.width / 2
+      let off = 0
+      const leftEdge = centerX - bubbleWidth / 2
+      const rightEdge = centerX + bubbleWidth / 2
+      if (leftEdge < margin) off = margin - leftEdge
+      else if (rightEdge > window.innerWidth - margin) off = window.innerWidth - margin - rightEdge
+      setOffset(off)
+    }
+    setVisible(true)
+  }
+  const handleClose = () => setVisible(false)
+
   return (
     <span
+      ref={ref}
       className="info-hover"
-      onMouseEnter={() => setVisible(true)}
-      onMouseLeave={() => setVisible(false)}
-      onFocus={() => setVisible(true)}
-      onBlur={() => setVisible(false)}
+      onMouseEnter={handleOpen}
+      onMouseLeave={handleClose}
+      onFocus={handleOpen}
+      onBlur={handleClose}
       tabIndex={0}
       role="button"
       aria-label="Chart info"
     >
       <span className="info-hover-icon">?</span>
       {visible && (
-        <span className="info-hover-tooltip" role="tooltip">{text}</span>
+        <span
+          className="info-hover-tooltip"
+          role="tooltip"
+          style={{
+            transform: `translateX(calc(-50% + ${offset}px))`,
+            '--arrow-left': `calc(50% - ${offset}px)`,
+          }}
+        >
+          {text}
+        </span>
       )}
     </span>
   )
