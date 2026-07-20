@@ -36,6 +36,8 @@ export const useOptionsStore = create((set, get) => ({
   selectedContract: null,
   legs: [],
   chainData: null,
+  chainCachedAt: null,   // unix seconds when the active chain data was last fetched/cached
+  chainSource: null,     // 'live' | 'cache' | 'demo'
 
   setTicker: (ticker) =>
     set({
@@ -48,6 +50,8 @@ export const useOptionsStore = create((set, get) => ({
       selectedContract: null,
       spotPrice: null,
       chainData: null,
+      chainCachedAt: null,
+      chainSource: null,
     }),
   setPositionSide: (positionSide) => {
     set({ positionSide })
@@ -152,7 +156,17 @@ export const useOptionsStore = create((set, get) => ({
         expirations: dates,
         expirationDate: nextExpiration,
         chainData: payload.optionChain ?? null,
+        chainCachedAt: payload.cachedAt ?? null,
+        chainSource: payload.source?.includes('cache') ? 'cache'
+          : payload.source?.includes('Demo') ? 'demo' : 'live',
       })
+
+      // Fire-and-forget access tracking to CF Worker
+      const cacheWorkerUrl = import.meta.env.VITE_CACHE_WORKER_URL
+      if (cacheWorkerUrl) {
+        fetch(`${cacheWorkerUrl.replace(/\/$/, '')}/access/${symbol}`, { method: 'POST' })
+          .catch(() => {})
+      }
 
       get().selectContractsForCurrentType()
     } catch (error) {

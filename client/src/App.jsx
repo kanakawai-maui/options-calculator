@@ -7,6 +7,8 @@ import { PositionBuilder } from './components/PositionBuilder'
 import { PositionPnLPanel } from './components/PositionPnLPanel'
 import { Insights, ChainInsights } from './components/Insights'
 import { TickerScreener } from './components/TickerScreener'
+import { Legal } from './components/Legal'
+import './components/Legal.css'
 
 function Tip({ text }) {
   const [open, setOpen] = useState(false)
@@ -104,6 +106,16 @@ function useMarketOpen() {
     }
   }, [])
   return open
+}
+
+function useHash() {
+  const [hash, setHash] = useState(window.location.hash)
+  useEffect(() => {
+    const handler = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', handler)
+    return () => window.removeEventListener('hashchange', handler)
+  }, [])
+  return hash
 }
 
 function App() {
@@ -210,6 +222,9 @@ function App() {
   }, [ticker, fetchChain])
 
   const marketOpen = useMarketOpen()
+  const hash = useHash()
+
+  if (hash === '#/legal') return <Legal />
 
   const fmtUsd = (n) =>
     n == null || Number.isNaN(n) ? '—' : `$${n.toFixed(2)}`
@@ -413,6 +428,10 @@ function App() {
         onClose={() => setScreenerOpen(false)}
         onSelect={setTicker}
       />
+
+      <footer className="app-footer">
+        <a href="#/legal">Legal</a>
+      </footer>
     </main>
   )
 }

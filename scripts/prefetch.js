@@ -129,12 +129,53 @@ async function pushToCache(ticker, data) {
   }
 }
 
+// ─── Hot-ticker prioritization ────────────────────────────────────────────────
+
+const fs = require('fs')
+const LAST_RUN_FILE = path.join(__dirname, '.last-run')
+
+function readLastRun() {
+  try {
+    const ts = parseInt(fs.readFileSync(LAST_RUN_FILE, 'utf8').trim(), 10)
+    return Number.isFinite(ts) ? ts : null
+  } catch {
+    return null
+  }
+}
+
+function writeLastRun() {
+  fs.writeFileSync(LAST_RUN_FILE, String(Math.floor(Date.now() / 1000)), 'utf8')
+}
+
+async function fetchHotTickers(since) {
+  try {
+    const url = `${CACHE_WORKER_URL}/access/hot?since=${since}`
+    const res = await fetch(url)
+    if (!res.ok) return []
+    const json = await res.json()
+    return (json || []).map((r) => r.ticker).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const tickers = process.argv.slice(2).length
-    ? process.argv.slice(2).map((t) => t.toUpperCase())
-    : DEFAULT_TICKERS
+  let tickers
+  if (process.argv.slice(2).length) {
+    tickers = process.argv.slice(2).map((t) => t.toUpperCase())
+  } else {
+    // Fetch hot tickers (recently accessed) and move them to the front
+    const lastRun = readLastRun() ?? Math.floor(Date.now() / 1000) - 86400
+    const hotTickers = await fetchHotTickers(lastRun)
+    if (hotTickers.length) {
+      console.log(`Prioritizing ${hotTickers.length} hot ticker(s): ${hotTickers.join(', ')}`)
+    }
+    // Deduplicate: hot first, then the rest of DEFAULT_TICKERS not already in hot
+    const hotSet = new Set(hotTickers)
+    tickers = [...hotTickers, ...DEFAULT_TICKERS.filter((t) => !hotSet.has(t))]
+  }
 
   console.log(`Prefetching ${tickers.length} ticker(s) → ${CACHE_WORKER_URL}\n`)
 
@@ -161,6 +202,11 @@ async function main() {
   }
 
   console.log(`\nDone: ${ok} succeeded, ${fail} failed`)
+
+  if (!process.argv.slice(2).length) {
+    writeLastRun()
+    console.log(`Last-run timestamp saved to ${LAST_RUN_FILE}`)
+  }
 }
 
 main().catch((err) => {

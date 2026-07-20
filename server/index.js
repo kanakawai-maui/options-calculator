@@ -524,64 +524,70 @@ app.get('/api/option-chain', async (request, response) => {
     return
   }
 
-  // Use Massive as primary provider when an API key is configured
-  if (process.env.MASSIVE_API_KEY) {
-    try {
-      const result = await fetchFromMassive(ticker, expiration)
-      response.json(result)
-      return
-    } catch (err) {
-      console.error(`[option-chain] ${ticker}: Massive failed:`, err?.message || err)
+  // When DISABLE_LIVE_FETCH is set, skip Yahoo/Massive and go straight to D1 cache
+  const disableLive = process.env.DISABLE_LIVE_FETCH === 'true'
+
+  if (!disableLive) {
+    // Use Massive as primary provider when an API key is configured
+    if (process.env.MASSIVE_API_KEY) {
+      try {
+        const result = await fetchFromMassive(ticker, expiration)
+        response.json(result)
+        return
+      } catch (err) {
+        console.error(`[option-chain] ${ticker}: Massive failed:`, err?.message || err)
+      }
+    } else {
+      // Fall back to Yahoo Finance when no Massive key is set
+      try {
+        const quote = await yahooFinance.quote(ticker)
+
+        let optionData = await yahooFinance.options(ticker)
+
+        const expirationDates = (optionData.expirationDates || [])
+          .map(toUnixSeconds)
+          .filter((value) => Number.isFinite(value))
+
+        let selectedExpiration = expiration
+        if (!selectedExpiration || !expirationDates.includes(selectedExpiration)) {
+          selectedExpiration = expirationDates[0] || null
+        }
+
+        if (selectedExpiration) {
+          optionData = await yahooFinance.options(ticker, {
+            date: new Date(selectedExpiration * 1000),
+          })
+        }
+
+        const chain = optionData.options?.[0] || { calls: [], puts: [] }
+
+        response.json({
+          ticker,
+          quote: {
+            symbol: quote.symbol,
+            regularMarketPrice: Number(quote.regularMarketPrice) || null,
+            regularMarketChangePercent: Number(quote.regularMarketChangePercent) || null,
+          },
+          expirationDates,
+          selectedExpiration,
+          optionChain: {
+            calls: (chain.calls || []).map(normalizeContract),
+            puts: (chain.puts || []).map(normalizeContract),
+          },
+          source: 'Yahoo Finance via yahoo-finance2',
+        })
+        return
+      } catch (error) {
+        console.error(`[option-chain] ${ticker}:`, error?.message || error)
+      }
     }
   } else {
-    // Fall back to Yahoo Finance when no Massive key is set
-    try {
-      const quote = await yahooFinance.quote(ticker)
-
-      let optionData = await yahooFinance.options(ticker)
-
-      const expirationDates = (optionData.expirationDates || [])
-        .map(toUnixSeconds)
-        .filter((value) => Number.isFinite(value))
-
-      let selectedExpiration = expiration
-      if (!selectedExpiration || !expirationDates.includes(selectedExpiration)) {
-        selectedExpiration = expirationDates[0] || null
-      }
-
-      if (selectedExpiration) {
-        optionData = await yahooFinance.options(ticker, {
-          date: new Date(selectedExpiration * 1000),
-        })
-      }
-
-      const chain = optionData.options?.[0] || { calls: [], puts: [] }
-
-      response.json({
-        ticker,
-        quote: {
-          symbol: quote.symbol,
-          regularMarketPrice: Number(quote.regularMarketPrice) || null,
-          regularMarketChangePercent: Number(quote.regularMarketChangePercent) || null,
-        },
-        expirationDates,
-        selectedExpiration,
-        optionChain: {
-          calls: (chain.calls || []).map(normalizeContract),
-          puts: (chain.puts || []).map(normalizeContract),
-        },
-        source: 'Yahoo Finance via yahoo-finance2',
-      })
-      return
-    } catch (error) {
-      console.error(`[option-chain] ${ticker}:`, error?.message || error)
-    }
+    console.log(`[option-chain] ${ticker}: live fetch disabled, using D1 cache`)
   }
 
   // D1 cache — last resort before synthetic data
   if (process.env.CACHE_WORKER_URL) {
     try {
-      console.log(`[option-chain] ${ticker}: trying D1 cache`)
       const cached = await fetchFromD1Cache(ticker)
       response.json(cached)
       return

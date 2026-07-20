@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './Pickers.css'
+import { useOptionsStore } from '../store/optionsStore'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ??
   (location.hostname === 'localhost' ? 'http://localhost:4000/api' : '/api')
@@ -22,6 +23,34 @@ const POPULAR_TICKERS = [
 function badgeClass(quoteType) {
   const map = { EQUITY: 'equity', ETF: 'etf', INDEX: 'index', MUTUALFUND: 'mutualfund' }
   return map[(quoteType ?? '').toUpperCase()] ?? 'equity'
+}
+
+// ─── DataAgeBadge ─────────────────────────────────────────────────────────────
+
+function formatAge(cachedAt) {
+  if (!cachedAt) return null
+  const ageSec = Math.floor(Date.now() / 1000) - cachedAt
+  if (ageSec < 60) return { label: `${ageSec}s ago`, cls: 'fresh' }
+  if (ageSec < 3600) return { label: `${Math.floor(ageSec / 60)}m ago`, cls: ageSec < 900 ? 'fresh' : 'stale' }
+  if (ageSec < 86400) return { label: `${Math.floor(ageSec / 3600)}h ago`, cls: 'old' }
+  return { label: `${Math.floor(ageSec / 86400)}d ago`, cls: 'old' }
+}
+
+export function DataAgeBadge({ cachedAt, source }) {
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 30000)
+    return () => clearInterval(id)
+  }, [])
+  if (!cachedAt) return null
+  const age = formatAge(cachedAt)
+  if (!age) return null
+  const isDemo = source === 'demo'
+  return (
+    <span className={`data-age-badge ${isDemo ? 'demo' : age.cls}`} title={isDemo ? 'Synthetic demo data' : `Cached at ${new Date(cachedAt * 1000).toLocaleTimeString()}`}>
+      {isDemo ? 'demo' : age.label}
+    </span>
+  )
 }
 
 function useOutsideClick(ref, cb) {
@@ -51,6 +80,7 @@ export function TickerSearch({ value, onSelect }) {
   })
   const inputRef = useRef(null)
   const ref = useRef(null)
+  const { chainCachedAt, chainSource } = useOptionsStore()
 
   // Sync when value changes externally (e.g. store reset)
   useEffect(() => {
@@ -147,7 +177,10 @@ export function TickerSearch({ value, onSelect }) {
             <span className="tc-symbol">{selectedInfo.symbol}</span>
             {selectedInfo.name && <span className="stl-name">{selectedInfo.name}</span>}
           </div>
-          <span className="pt-chevron stl-edit" aria-hidden="true">✎</span>
+          <div className="stl-right">
+            <DataAgeBadge cachedAt={chainCachedAt} source={chainSource} />
+            <span className="pt-chevron stl-edit" aria-hidden="true">✎</span>
+          </div>
         </button>
       ) : (
         /* ── Search input ── */

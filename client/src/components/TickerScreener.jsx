@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './TickerScreener.css'
+import { DataAgeBadge } from './Pickers'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ??
   (location.hostname === 'localhost' ? 'http://localhost:4000/api' : '/api')
@@ -397,6 +398,9 @@ export function TickerScreener({ open, onClose, onSelect }) {
                                 <span className="ts-symbol">{row.symbol}</span>
                                 {row.name && row.name !== row.symbol ? (
                                   <span className="ts-symbol-name">{row.name}</span>
+                                ) : null}
+                                {row.cachedAt ? (
+                                  <DataAgeBadge cachedAt={row.cachedAt} source={row.source} />
                                 ) : null}
                               </div>
                             ) : (
