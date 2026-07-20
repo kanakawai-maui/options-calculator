@@ -88,9 +88,37 @@ const STRATEGIES = [
     group: 'Calendar',
     traits: { direction: 'sideways', risk: 'defined', timeframe: 'long' },
   },
+  {
+    id: 'covered-call',
+    label: 'Covered Call',
+    desc: 'Long 100 shares + short OTM call — collects income premium, caps upside',
+    group: 'Stock',
+    traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
+  },
+  {
+    id: 'protective-put',
+    label: 'Protective Put',
+    desc: 'Long 100 shares + long OTM put — insures against downside while keeping upside',
+    group: 'Stock',
+    traits: { direction: 'up', risk: 'defined', timeframe: 'short' },
+  },
+  {
+    id: 'collar',
+    label: 'Collar',
+    desc: 'Long 100 shares + short OTM call + long OTM put — bounded upside and downside',
+    group: 'Stock',
+    traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
+  },
+  {
+    id: 'cash-secured-put',
+    label: 'Cash-Secured Put',
+    desc: 'Short OTM put with cash collateral — collects premium, acquires stock if assigned',
+    group: 'Stock',
+    traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
+  },
 ]
 
-const GROUPS = ['Volatility', 'Condors', 'Spreads', 'Calendar']
+const GROUPS = ['Volatility', 'Condors', 'Spreads', 'Calendar', 'Stock']
 
 const FINDER_GROUPS = [
   {
@@ -131,6 +159,9 @@ function formatExpDate(exp) {
 }
 
 function legLabel(leg) {
+  if (leg.optionType === 'stock') {
+    return leg.positionSide === 'buy' ? 'Long Stock' : 'Short Stock'
+  }
   const side = leg.positionSide === 'buy' ? 'Long' : 'Short'
   const type = leg.optionType === 'call' ? 'Call' : 'Put'
   return `${side} ${type}`
@@ -147,8 +178,8 @@ function LegPayoffMini({ leg, spotPrice }) {
   const padX = 3
   const padY = 4
 
-  const center = spotPrice || leg.strike
-  const range = Math.max(center * 0.35, leg.strike * 0.35)
+  const center = spotPrice || leg.strike || leg.markPrice
+  const range = Math.max(center * 0.35, (leg.strike ?? leg.markPrice) * 0.35)
   const minPrice = Math.max(center - range, 0.01)
   const maxPrice = center + range
 
@@ -159,11 +190,16 @@ function LegPayoffMini({ leg, spotPrice }) {
   let maxPnl = -Infinity
   for (let i = 0; i < N; i++) {
     const p = minPrice + ((maxPrice - minPrice) * i) / (N - 1)
-    const intrinsic =
-      leg.optionType === 'call'
-        ? Math.max(p - leg.strike, 0)
-        : Math.max(leg.strike - p, 0)
-    const pnl = (intrinsic - leg.markPrice) * dir
+    let pnl
+    if (leg.optionType === 'stock') {
+      pnl = (p - leg.markPrice) * dir
+    } else {
+      const intrinsic =
+        leg.optionType === 'call'
+          ? Math.max(p - leg.strike, 0)
+          : Math.max(leg.strike - p, 0)
+      pnl = (intrinsic - leg.markPrice) * dir
+    }
     points.push({ p, pnl })
     if (pnl < minPnl) minPnl = pnl
     if (pnl > maxPnl) maxPnl = pnl
@@ -202,7 +238,7 @@ function LegPayoffMini({ leg, spotPrice }) {
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label={`${legLabel(leg)} $${leg.strike} payoff shape at expiration`}
+      aria-label={leg.optionType === 'stock' ? `${legLabel(leg)} payoff shape` : `${legLabel(leg)} $${leg.strike} payoff shape at expiration`}
     >
       <defs>
         <clipPath id={clipPosId}>
@@ -246,6 +282,7 @@ export function PositionBuilder() {
     positionSide,
     ticker,
     addCurrentLeg,
+    addStockLeg,
     removeLeg,
     resetLegs,
     updateLeg,
@@ -294,8 +331,9 @@ export function PositionBuilder() {
   const hasChain = !!(chainData && spotPrice)
   const canAddLeg = !!(selectedContract?.markPrice)
 
-  // Net premium: positive = credit received, negative = debit paid
+  // Net premium: positive = credit received, negative = debit paid (options only; stock is separate)
   const netPremium = legs.reduce((sum, leg) => {
+    if (leg.optionType === 'stock') return sum
     const sign = leg.positionSide === 'sell' ? 1 : -1
     return sum + sign * leg.markPrice * 100 * leg.quantity
   }, 0)
@@ -440,6 +478,22 @@ export function PositionBuilder() {
             + Add Current Leg
           </button>
           <button
+            className="pb-add-btn pb-add-stock-btn"
+            disabled={!spotPrice}
+            onClick={() => addStockLeg('buy')}
+            title={spotPrice ? `Add long 100 shares of ${ticker || 'stock'} @ $${spotPrice?.toFixed(2)}` : 'Load a ticker first'}
+          >
+            + Long Stock
+          </button>
+          <button
+            className="pb-add-btn pb-add-stock-btn pb-add-stock-short"
+            disabled={!spotPrice}
+            onClick={() => addStockLeg('sell')}
+            title={spotPrice ? `Add short 100 shares of ${ticker || 'stock'} @ $${spotPrice?.toFixed(2)}` : 'Load a ticker first'}
+          >
+            + Short Stock
+          </button>
+          <button
             className="pb-reset-btn"
             disabled={legs.length === 0}
             onClick={resetLegs}
@@ -465,11 +519,16 @@ export function PositionBuilder() {
       </div>
 
       {/* Current legs table */}
-      {legs.length > 0 && (
+      {legs.length > 0 && (() => {
+        const optionLegs = legs.filter((l) => l.optionType !== 'stock')
+        const stockLegs  = legs.filter((l) => l.optionType === 'stock')
+        return (
+        <>
+        {optionLegs.length > 0 && (
         <div className="pb-legs">
           <div className="pb-section-label pb-section-label--row">
             <span>
-              Current Position ({legs.length} leg{legs.length !== 1 ? 's' : ''})
+              Options Legs ({optionLegs.length} leg{optionLegs.length !== 1 ? 's' : ''})
             </span>
             {positionTickers.length > 0 && (
               <span className="pb-legs-tickers">
@@ -500,7 +559,7 @@ export function PositionBuilder() {
                 </tr>
               </thead>
               <tbody>
-                {legs.map((leg, i) => (
+                {optionLegs.map((leg, i) => (
                   <tr key={leg.id}>
                     <td>
                       <span className="ticker-chip ticker-chip--table">
@@ -620,7 +679,100 @@ export function PositionBuilder() {
             </table>
           </div>
         </div>
-      )}
+        )}
+
+        {/* Stock positions grid */}
+        {stockLegs.length > 0 && (
+        <div className="pb-stock-grid">
+          <div className="pb-section-label">
+            Stock Positions ({stockLegs.length})
+          </div>
+          <div className="legs-scroll">
+            <table className="legs-table stock-legs-table">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Side</th>
+                  <th>Shares</th>
+                  <th>Entry</th>
+                  <th>Current</th>
+                  <th>Unrealised P/L</th>
+                  <th>Payoff</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {stockLegs.map((leg) => {
+                  const dir = leg.positionSide === 'buy' ? 1 : -1
+                  const shares = leg.quantity * 100
+                  const current = spotPrice ?? leg.markPrice
+                  const pnl = (current - leg.markPrice) * shares * dir
+                  const pnlPct = leg.markPrice > 0
+                    ? ((current - leg.markPrice) / leg.markPrice) * 100 * dir
+                    : 0
+                  const pnlSign = pnl >= 0 ? 'pos' : 'neg'
+                  return (
+                    <tr key={leg.id}>
+                      <td>
+                        <span className="ticker-chip ticker-chip--table">
+                          {(leg.ticker || '—').toUpperCase()}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`leg-badge side-${leg.positionSide}`}>
+                          {leg.positionSide === 'buy' ? 'Long' : 'Short'}
+                        </span>
+                      </td>
+                      <td className="stock-shares-cell">{shares.toLocaleString()}</td>
+                      <td className="stock-price-cell">${leg.markPrice.toFixed(2)}</td>
+                      <td className="stock-price-cell">
+                        {spotPrice ? `$${spotPrice.toFixed(2)}` : '—'}
+                      </td>
+                      <td>
+                        <span className={`stock-pnl-cell stock-pnl-${pnlSign}`}>
+                          {spotPrice ? (
+                            <>
+                              {pnl >= 0 ? '+' : ''}${pnl.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                              <span className="stock-pnl-pct">
+                                {' '}({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
+                              </span>
+                            </>
+                          ) : '—'}
+                        </span>
+                      </td>
+                      <td className="leg-payoff-cell">
+                        <LegPayoffMini leg={leg} spotPrice={leg.spotPriceAtAdd ?? spotPrice} />
+                      </td>
+                      <td>
+                        <button
+                          className="leg-remove-btn"
+                          onClick={() => removeLeg(leg.id)}
+                          aria-label={`Remove ${legLabel(leg)} position`}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={7} className="legs-total-label">
+                    Total stock position cost (entry × shares)
+                  </td>
+                  <td className="legs-total-value">
+                    ${stockLegs.reduce((s, l) => s + l.markPrice * l.quantity * 100, 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        )}
+        </>
+        )
+      })()}
       </>
       )}
     </section>

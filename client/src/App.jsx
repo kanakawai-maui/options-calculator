@@ -425,6 +425,7 @@ function App() {
             ticker={group.ticker}
             spotPrice={group.spot}
             heatmap={group.heatmap}
+            legs={group.legs}
             headingSuffix={legs.length > 0 ? ' Position P/L (USD)' : ' P/L Heatmap (USD)'}
             showTickerBadge={positionGroups.length > 1}
             dragHandle={i === 0 ? dragHandle : null}

@@ -199,16 +199,23 @@ export function buildHeatmap({ spotPrice, legs, moveRangePercent }) {
 
   const nowSeconds = Date.now() / 1000
 
-  // Per-leg DTE (days to expiration from today, minimum 1)
-  const legDTEs = legs.map((l) =>
-    Math.max(Math.round((Number(l.expiration) - nowSeconds) / 86400), 1),
-  )
-  const maxDTE = Math.max(...legDTEs)
+  // Per-leg DTE (days to expiration from today, minimum 1).
+  // Stock legs have no expiry — assign a large sentinel so they never expire in the loop.
+  const legDTEs = legs.map((l) => {
+    if (l.optionType === 'stock') return 99999
+    return Math.max(Math.round((Number(l.expiration) - nowSeconds) / 86400), 1)
+  })
 
-  // Average IV for probability bucketing
+  // maxDTE drives the time axis — only count option legs (stock has no expiry)
+  const optionDTEs = legDTEs.filter((_, i) => legs[i].optionType !== 'stock')
+  const maxDTE = optionDTEs.length > 0 ? Math.max(...optionDTEs) : 30
+
+  // Average IV for probability bucketing — only count option legs
+  const optionLegs = legs.filter((l) => l.optionType !== 'stock')
   const avgVolatility =
-    legs.reduce((sum, l) => sum + Math.max(Number(l.impliedVolatility) || 0.25, 0.05), 0) /
-    legs.length
+    optionLegs.length > 0
+      ? optionLegs.reduce((sum, l) => sum + Math.max(Number(l.impliedVolatility) || 0.25, 0.05), 0) / optionLegs.length
+      : 0.25
 
   const range = Math.max(5, Math.min(200, Number(moveRangePercent) || 30)) / 100
   const daysToExpiration = maxDTE
@@ -250,10 +257,17 @@ export function buildHeatmap({ spotPrice, legs, moveRangePercent }) {
       let totalPnl = 0
       for (let li = 0; li < legs.length; li++) {
         const leg = legs[li]
+        const direction = leg.positionSide === 'sell' ? -1 : 1
+
+        if (leg.optionType === 'stock') {
+          // Stock: linear P&L per share (100 shares per quantity unit)
+          totalPnl += (price - leg.markPrice) * 100 * leg.quantity * direction
+          continue
+        }
+
         const daysRemaining = Math.max(legDTEs[li] - days, 0)
         const timeYears = daysRemaining / 365
         const volatility = Math.max(Number(leg.impliedVolatility) || 0.25, 0.05)
-        const direction = leg.positionSide === 'sell' ? -1 : 1
 
         const estimatedValue = blackScholes({
           stockPrice: price,
@@ -363,11 +377,12 @@ export function buildAggregateHeatmap({
 
   const nowSeconds = Date.now() / 1000
 
-  // Helper: DTE array for a set of legs
+  // Helper: DTE array for a set of legs (stock legs get a large sentinel value)
   function legDTEs(legs) {
-    return legs.map((l) =>
-      Math.max(Math.round((Number(l.expiration) - nowSeconds) / 86400), 1),
-    )
+    return legs.map((l) => {
+      if (l.optionType === 'stock') return 99999
+      return Math.max(Math.round((Number(l.expiration) - nowSeconds) / 86400), 1)
+    })
   }
 
   // Helper: P/L for one group's legs at a given stock price and daysElapsed
@@ -375,10 +390,16 @@ export function buildAggregateHeatmap({
     let total = 0
     for (let li = 0; li < legs.length; li++) {
       const leg = legs[li]
+      const direction = leg.positionSide === 'sell' ? -1 : 1
+
+      if (leg.optionType === 'stock') {
+        total += (stockPrice - leg.markPrice) * 100 * leg.quantity * direction
+        continue
+      }
+
       const daysRemaining = Math.max(dtesForLegs[li] - elapsed, 0)
       const timeYears = daysRemaining / 365
       const volatility = Math.max(Number(leg.impliedVolatility) || 0.25, 0.05)
-      const direction = leg.positionSide === 'sell' ? -1 : 1
       const estimated = blackScholes({
         stockPrice,
         strike: leg.strike,

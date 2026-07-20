@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * P/L panel for a single underlying: expiration curve + heatmap + horizontal
@@ -40,6 +40,7 @@ export function PositionPnLPanel({
   headingSuffix,
   showTickerBadge,
   dragHandle,
+  legs = [],
 }) {
   const scrollRef = useRef(null)
   const thumbRef = useRef(null)
@@ -48,6 +49,46 @@ export function PositionPnLPanel({
   const dragStartX = useRef(0)
   const dragStartScrollLeft = useRef(0)
   const [open, setOpen] = useState(true)
+  const [includePremium, setIncludePremium] = useState(true)
+
+  // Net premium offset: the constant shift added to P/L values when premium is excluded.
+  // Long leg: adds back the cost paid → shows gross payoff
+  // Short leg: removes the credit received → shows gross liability
+  const netPremiumOffset = useMemo(() =>
+    legs.reduce((sum, leg) => {
+      const dir = leg.positionSide === 'buy' ? 1 : -1
+      return sum + leg.markPrice * 100 * leg.quantity * dir
+    }, 0)
+  , [legs])
+
+  // Adjusted expiry curve — shifts values by the premium offset when toggle is off
+  const adjustedCurve = useMemo(() => {
+    const raw = heatmap?.expiryCurve ?? []
+    if (includePremium || netPremiumOffset === 0 || legs.length === 0) return raw
+    return raw.map(pt => ({ ...pt, value: pt.value + netPremiumOffset }))
+  }, [heatmap?.expiryCurve, includePremium, netPremiumOffset, legs.length])
+
+  // Unlimited-risk detection: naked short call with no covering long call
+  const isUnlimitedRisk = useMemo(() =>
+    legs.some(leg =>
+      leg.positionSide === 'sell' && leg.optionType === 'call' &&
+      !legs.some(l =>
+        l.positionSide === 'buy' && l.optionType === 'call' &&
+        l.ticker === leg.ticker && l.expiration === leg.expiration
+      )
+    )
+  , [legs])
+
+  // Large-loss detection: naked short put (large downside) or deep loss vs gain
+  const hasNakedShortPut = useMemo(() =>
+    legs.some(leg =>
+      leg.positionSide === 'sell' && leg.optionType === 'put' &&
+      !legs.some(l =>
+        l.positionSide === 'buy' && l.optionType === 'put' &&
+        l.ticker === leg.ticker && l.expiration === leg.expiration
+      )
+    )
+  , [legs])
 
   const updateThumb = useCallback(() => {
     const scroll = scrollRef.current
@@ -120,27 +161,45 @@ export function PositionPnLPanel({
   const chartWidth = 960
   const chartHeight = 220
   const chartPadding = 28
-  const curvePath = buildCurvePath(
-    heatmap?.expiryCurve ?? [],
-    chartWidth,
-    chartHeight,
-    chartPadding,
-  )
-  const curvePrices = (heatmap?.expiryCurve ?? []).map((p) => p.stockPrice)
-  const curveValues = (heatmap?.expiryCurve ?? []).map((p) => p.value)
+  const curvePath = buildCurvePath(adjustedCurve, chartWidth, chartHeight, chartPadding)
+  const curvePrices = adjustedCurve.map((p) => p.stockPrice)
+  const curveValues = adjustedCurve.map((p) => p.value)
   const minPriceCurve = curvePrices.length ? Math.min(...curvePrices) : 0
   const maxPriceCurve = curvePrices.length ? Math.max(...curvePrices) : 1
   const minCurve = curveValues.length ? Math.min(...curveValues) : 0
   const maxCurve = curveValues.length ? Math.max(...curveValues) : 0
+  const maxGain = maxCurve
+  const maxLoss = minCurve
+  const isLargeLoss = hasNakedShortPut || (maxLoss < -200 && Math.abs(maxLoss) > Math.abs(maxGain) * 1.5)
+  const isDangerZone = isUnlimitedRisk || isLargeLoss
+  const xSpan = Math.max(maxPriceCurve - minPriceCurve, 1)
+  const ySpan = Math.max(maxCurve - minCurve, 1)
   const zeroY =
     maxCurve === minCurve
       ? chartHeight / 2
-      : chartHeight -
-        chartPadding -
-        ((0 - minCurve) / (maxCurve - minCurve)) * (chartHeight - chartPadding * 2)
+      : chartHeight - chartPadding - ((0 - minCurve) / ySpan) * (chartHeight - chartPadding * 2)
+  const clampedZeroY = Math.max(chartPadding, Math.min(chartHeight - chartPadding, zeroY))
   const minX = chartPadding
   const maxX = chartWidth - chartPadding
   const spotX = mapRange(spotPrice || minPriceCurve, minPriceCurve, maxPriceCurve, minX, maxX)
+
+  // Area path: traces zero line → curve → back to zero line, used for profit/loss fills
+  const curveAreaPath = adjustedCurve.length < 2 ? '' : (() => {
+    const pts = adjustedCurve.map(pt => ({
+      x: chartPadding + ((pt.stockPrice - minPriceCurve) / xSpan) * (chartWidth - chartPadding * 2),
+      y: chartHeight - chartPadding - ((pt.value - minCurve) / ySpan) * (chartHeight - chartPadding * 2),
+    }))
+    return (
+      `M ${pts[0].x.toFixed(2)},${clampedZeroY.toFixed(2)} ` +
+      pts.map(p => `L ${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ') +
+      ` L ${pts[pts.length - 1].x.toFixed(2)},${clampedZeroY.toFixed(2)} Z`
+    )
+  })()
+
+  // Stable SVG ID fragment (avoids collisions when multiple panels render)
+  const svgId = (ticker || 'c').replace(/[^a-zA-Z0-9]/g, '_')
+  // Per-cell offset applied to heatmap numbers when premium is toggled off
+  const cellOffset = !includePremium && legs.length > 0 ? netPremiumOffset : 0
 
   return (
     <section className="heatmap-panel">
@@ -162,6 +221,29 @@ export function PositionPnLPanel({
         </div>
         <div className="heatmap-header-actions">
           {dragHandle}
+          {isDangerZone && (
+            <span
+              className="curve-danger-badge"
+              title={isUnlimitedRisk
+                ? 'Naked short call detected — losses are theoretically unlimited as the stock rises'
+                : 'Large potential loss detected relative to maximum gain'}
+            >
+              ⚠ {isUnlimitedRisk ? 'Unlimited Risk' : 'High Risk'}
+            </span>
+          )}
+          {legs.length > 0 && (
+            <button
+              type="button"
+              className={`curve-premium-toggle${!includePremium ? ' active' : ''}`}
+              onClick={() => setIncludePremium(v => !v)}
+              title={includePremium
+                ? 'Showing net P/L after deducting premium cost. Click to show gross payoff.'
+                : 'Showing gross payoff without premium deduction. Click to show net P/L.'}
+              aria-pressed={!includePremium}
+            >
+              {includePremium ? 'Incl. Premium' : 'Excl. Premium'}
+            </button>
+          )}
           <button
             type="button"
             className={`panel-collapse-btn${open ? '' : ' collapsed'}`}
@@ -178,15 +260,60 @@ export function PositionPnLPanel({
       {open && (
         <>
 
-      {heatmap?.expiryCurve?.length > 1 ? (
+      {adjustedCurve.length > 1 ? (
         <div className="curve-panel">
-          <div className="curve-title">P/L at Expiration</div>
+          <div className="curve-title-row">
+            <span className="curve-title">
+              {includePremium ? 'P/L at Expiration' : 'Gross Payoff at Expiration'}
+            </span>
+            {isDangerZone && (
+              <span className="curve-danger-inline">
+                ⚠ {isUnlimitedRisk
+                  ? 'Unlimited risk — loss grows as stock rises'
+                  : `Max loss ≈ $${Math.abs(maxLoss).toFixed(0)}`}
+              </span>
+            )}
+          </div>
           <svg
             className="curve-chart"
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             role="img"
-            aria-label={`Profit and loss curve at expiration${ticker ? ` for ${ticker}` : ''}`}
+            aria-label={`${includePremium ? 'Profit and loss' : 'Gross payoff'} curve at expiration${ticker ? ` for ${ticker}` : ''}`}
           >
+            <defs>
+              <clipPath id={`cpos-${svgId}`}>
+                <rect
+                  x={chartPadding} y={chartPadding}
+                  width={chartWidth - chartPadding * 2}
+                  height={Math.max(0, clampedZeroY - chartPadding)}
+                />
+              </clipPath>
+              <clipPath id={`cneg-${svgId}`}>
+                <rect
+                  x={chartPadding} y={clampedZeroY}
+                  width={chartWidth - chartPadding * 2}
+                  height={Math.max(0, chartHeight - chartPadding - clampedZeroY)}
+                />
+              </clipPath>
+              {isDangerZone && (
+                <pattern id={`dhatch-${svgId}`} patternUnits="userSpaceOnUse" width="10" height="10">
+                  <line x1="0" y1="10" x2="10" y2="0" stroke="rgba(239,68,68,0.45)" strokeWidth="2" />
+                </pattern>
+              )}
+            </defs>
+            {curveAreaPath && (
+              <path d={curveAreaPath} fill="rgba(34,197,94,0.11)" clipPath={`url(#cpos-${svgId})`} />
+            )}
+            {curveAreaPath && (
+              <path
+                d={curveAreaPath}
+                fill={isDangerZone ? `url(#dhatch-${svgId})` : 'rgba(239,68,68,0.11)'}
+                clipPath={`url(#cneg-${svgId})`}
+              />
+            )}
+            {isDangerZone && curveAreaPath && (
+              <path d={curveAreaPath} fill="rgba(239,68,68,0.07)" clipPath={`url(#cneg-${svgId})`} />
+            )}
             <line
               x1={chartPadding}
               y1={chartPadding}
@@ -203,9 +330,9 @@ export function PositionPnLPanel({
             />
             <line
               x1={chartPadding}
-              y1={Math.max(chartPadding, Math.min(chartHeight - chartPadding, zeroY))}
+              y1={clampedZeroY}
               x2={chartWidth - chartPadding}
-              y2={Math.max(chartPadding, Math.min(chartHeight - chartPadding, zeroY))}
+              y2={clampedZeroY}
               className="curve-zero"
             />
             <path d={curvePath} className="curve-line" />
@@ -222,8 +349,28 @@ export function PositionPnLPanel({
               {minCurve.toFixed(0)}
             </text>
             <text x={chartPadding + 4} y={15} className="curve-axis-title" textAnchor="start">
-              P/L (USD)
+              {includePremium ? 'Net P/L (USD)' : 'Gross Payoff (USD)'}
             </text>
+            {maxGain > 0 && (
+              <text
+                x={chartWidth - chartPadding - 4}
+                y={chartPadding + 12}
+                className="curve-label curve-label--profit"
+                textAnchor="end"
+              >
+                Max gain: ${maxGain.toFixed(0)}
+              </text>
+            )}
+            {maxLoss < 0 && (
+              <text
+                x={chartWidth - chartPadding - 4}
+                y={chartHeight - chartPadding - 6}
+                className={`curve-label${isDangerZone ? ' curve-label--danger' : ''}`}
+                textAnchor="end"
+              >
+                {isUnlimitedRisk ? '⚠ Max loss: unlimited' : `Max loss: $${Math.abs(maxLoss).toFixed(0)}`}
+              </text>
+            )}
 
             <circle cx={minX} cy={chartHeight - chartPadding} r="2.5" className="curve-tick" />
             <circle cx={spotX} cy={chartHeight - chartPadding} r="2.5" className="curve-spot" />
@@ -255,7 +402,7 @@ export function PositionPnLPanel({
             </text>
           </svg>
           <p className="curve-caption">
-            X-axis: stock price at expiration. Y-axis: projected profit/loss in USD.
+            X-axis: stock price at expiration. Y-axis: {includePremium ? 'net P/L after premium' : 'gross payoff before premium'} (USD).
           </p>
         </div>
       ) : null}
@@ -276,7 +423,7 @@ export function PositionPnLPanel({
                         style={{ backgroundColor: cell.color }}
                         title={`Day ${cell.day} / Price $${cell.stockPrice.toFixed(2)} / Probability ${(cell.probability * 100).toFixed(2)}%`}
                       >
-                        <span>{cell.value.toFixed(0)}</span>
+                        <span>{(cell.value + cellOffset).toFixed(0)}</span>
                         <span className="probability">
                           {(cell.probability * 100).toFixed(1)}%
                         </span>

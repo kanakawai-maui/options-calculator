@@ -231,6 +231,22 @@ export const useOptionsStore = create(
     return true
   },
 
+  addStockLeg: (positionSide) => {
+    const { ticker, spotPrice, quantity } = get()
+    if (!spotPrice) return false
+    const leg = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      ticker: (ticker || '').trim().toUpperCase(),
+      spotPriceAtAdd: spotPrice,
+      optionType: 'stock',
+      positionSide,
+      quantity,
+      markPrice: spotPrice, // entry price per share
+    }
+    set((state) => ({ legs: [...state.legs, leg] }))
+    return true
+  },
+
   removeLeg: (id) => set((state) => ({ legs: state.legs.filter((l) => l.id !== id) })),
 
   resetLegs: () => set({ legs: [] }),
@@ -346,6 +362,18 @@ export const useOptionsStore = create(
       }
     }
 
+    function makeStockLeg(positionSide, quantity = 1) {
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        ticker: symbol,
+        spotPriceAtAdd: spotPrice,
+        optionType: 'stock',
+        positionSide,
+        quantity,
+        markPrice: spotPrice,
+      }
+    }
+
     const atmCall = nearest(calls, spotPrice)
     const atmPut = nearest(puts, spotPrice)
     const otmC1 = nearestAbove(calls, spotPrice * 1.03)
@@ -431,6 +459,10 @@ export const useOptionsStore = create(
         makeCalendarLeg(atmPut, 'put', 'sell', nearExp),
         makeCalendarLeg(atmPut, 'put', 'buy',  farExp),
       ],
+      'covered-call':    [makeStockLeg('buy'), makeLeg(otmC1, 'call', 'sell')],
+      'protective-put':  [makeStockLeg('buy'), makeLeg(otmP1, 'put', 'buy')],
+      'collar':          [makeStockLeg('buy'), makeLeg(otmC1, 'call', 'sell'), makeLeg(otmP1, 'put', 'buy')],
+      'cash-secured-put':[makeLeg(otmP1, 'put', 'sell')],
     }
 
     const newLegs = (strategies[strategyName] ?? []).filter(Boolean)

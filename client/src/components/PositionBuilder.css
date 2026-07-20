@@ -282,6 +282,28 @@
   cursor: not-allowed;
 }
 
+.pb-add-stock-btn {
+  background: rgba(139, 92, 246, 0.1);
+  color: #a78bfa;
+  border-color: rgba(139, 92, 246, 0.35);
+}
+
+.pb-add-stock-btn:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: #a78bfa;
+}
+
+.pb-add-stock-short {
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--neg);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.pb-add-stock-short:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: var(--neg);
+}
+
 .pb-reset-btn {
   padding: 0.4rem 0.85rem;
   font-size: 0.78rem;
@@ -407,6 +429,12 @@
   border-color: rgba(245, 181, 68, 0.3);
 }
 
+.leg-badge.type-stock {
+  background: rgba(139, 92, 246, 0.12);
+  color: #a78bfa;
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
 /* ── Editable leg cells (strike select, expiry select, qty input) ──────── */
 
 .leg-cell-select {
@@ -429,6 +457,13 @@
   border-color: var(--accent);
   outline: none;
   background: rgba(76, 201, 240, 0.06);
+}
+
+.leg-cell-text {
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .leg-qty-input {
@@ -591,6 +626,47 @@
 
 .legs-total-value.debit {
   color: var(--neg);
+}
+
+/* ── Stock positions grid ────────────────────────────────────────────────── */
+
+.pb-stock-grid {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.stock-legs-table {
+  min-width: 520px;
+}
+
+.stock-shares-cell {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stock-price-cell {
+  color: var(--text-muted);
+}
+
+.stock-pnl-cell {
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.stock-pnl-pos {
+  color: var(--pos);
+}
+
+.stock-pnl-neg {
+  color: var(--neg);
+}
+
+.stock-pnl-pct {
+  font-size: 0.7rem;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */

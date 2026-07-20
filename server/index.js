@@ -76,7 +76,38 @@ const PORT = Number(process.env.PORT || 4000)
 app.set('trust proxy', 1)
 
 // Security headers
-app.use(helmet())
+// CSP is extended to allow the Google/Firebase origins required by Firebase Auth
+// (signInWithPopup loads apis.google.com scripts and opens firebaseapp.com iframes).
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'script-src': [
+        "'self'",
+        'https://apis.google.com',
+        'https://*.gstatic.com',
+      ],
+      'frame-src': [
+        "'self'",
+        'https://*.firebaseapp.com',
+        'https://accounts.google.com',
+      ],
+      'connect-src': [
+        "'self'",
+        'https://*.googleapis.com',
+        'https://identitytoolkit.googleapis.com',
+        'https://securetoken.googleapis.com',
+        'https://*.firebaseio.com',
+      ],
+      'img-src': [
+        "'self'",
+        'data:',
+        'https://*.googleapis.com',
+        'https://*.gstatic.com',
+      ],
+    },
+  },
+}))
 
 // CORS — restrict to the deployed frontend origin(s); falls back to localhost for dev
 const allowedOrigins = process.env.ALLOWED_ORIGIN

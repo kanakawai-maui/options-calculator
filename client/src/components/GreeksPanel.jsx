@@ -58,11 +58,13 @@ function buildCurves({ legs, spotPrice, moveRangePercent, greek }) {
   const samples = 100
   const nowSec = Date.now() / 1000
 
-  // Per-leg time to expiry (days)
-  const legDTEs = legs.map((l) =>
-    Math.max((Number(l.expiration) - nowSec) / 86400, 0),
-  )
-  const maxDTE = Math.max(...legDTEs, 1)
+  // Per-leg time to expiry (days); stock legs get a large sentinel (no expiry)
+  const legDTEs = legs.map((l) => {
+    if (l.optionType === 'stock') return 99999
+    return Math.max((Number(l.expiration) - nowSec) / 86400, 0)
+  })
+  const optionDTEs = legDTEs.filter((_, i) => legs[i].optionType !== 'stock')
+  const maxDTE = Math.max(...optionDTEs, 1)
 
   const slices = TIME_SLICES.map((slice) => {
     const points = []
@@ -80,7 +82,10 @@ function buildCurves({ legs, spotPrice, moveRangePercent, greek }) {
         const params = { stockPrice: S, strike: leg.strike, timeYears, volatility, rate: 0.05, optionType: leg.optionType }
 
         let raw = 0
-        if (greek === 'delta') raw = calcDelta(params)
+        if (leg.optionType === 'stock') {
+          // Stock: delta = 1 (direction already in multiplier), all other greeks = 0
+          if (greek === 'delta') raw = 1
+        } else if (greek === 'delta') raw = calcDelta(params)
         else if (greek === 'gamma') raw = calcGamma(params)
         else if (greek === 'theta') raw = calcTheta(params)
         else if (greek === 'vega') raw = calcVega(params)
