@@ -3,3 +3,98 @@
     flex-direction: column;
     gap: 8px;
 }
+
+/* ─── GreeksPanel ─────────────────────────────────────────────────────────── */
+
+.greeks-panel-outer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: var(--panel-bg, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    border-radius: 10px;
+}
+
+.greeks-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.greeks-panel-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary, #e2e8f0);
+    letter-spacing: 0.01em;
+}
+
+.greeks-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    font-size: 0.72rem;
+    color: var(--text-dim, #94a3b8);
+}
+
+.greeks-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.greeks-legend-swatch {
+    width: 22px;
+    height: 3px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.greeks-charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* Last item (Rho) spans both columns so the grid stays balanced */
+.greeks-charts-grid > .greek-chart-panel:last-child {
+    grid-column: 1 / -1;
+}
+
+.greek-chart-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    background: var(--surface-1, rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+    border-radius: 8px;
+}
+
+.greek-unit-label {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-dim, #94a3b8);
+}
+
+.greek-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid currentColor;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    opacity: 0.9;
+}
+
+@media (max-width: 700px) {
+    .greeks-charts-grid {
+        grid-template-columns: 1fr;
+    }
+    .greeks-charts-grid > .greek-chart-panel:last-child {
+        grid-column: unset;
+    }
+}

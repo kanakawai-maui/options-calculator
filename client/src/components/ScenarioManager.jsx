@@ -1,0 +1,149 @@
+import { useState } from 'react'
+import { useOptionsStore } from '../store/optionsStore'
+import './ScenarioManager.css'
+
+function formatDate(ms) {
+  const d = new Date(ms)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+export function ScenarioManager() {
+  const [open, setOpen] = useState(true)
+  const [saveName, setSaveName] = useState('')
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [loadedId, setLoadedId] = useState(null)
+
+  const { scenarios, saveScenario, loadScenario, deleteScenario, renameScenario, legs } =
+    useOptionsStore()
+
+  const handleSave = () => {
+    saveScenario(saveName)
+    setSaveName('')
+  }
+
+  const handleLoad = (id) => {
+    loadScenario(id)
+    setLoadedId(id)
+    setTimeout(() => setLoadedId(null), 1500)
+  }
+
+  const handleRenameCommit = (id) => {
+    renameScenario(id, renameValue)
+    setRenamingId(null)
+    setRenameValue('')
+  }
+
+  const handleRenameKey = (e, id) => {
+    if (e.key === 'Enter') handleRenameCommit(id)
+    if (e.key === 'Escape') {
+      setRenamingId(null)
+      setRenameValue('')
+    }
+  }
+
+  return (
+    <section className="scenario-manager">
+      <div className="sm-header">
+        <span className="sm-title">Scenarios</span>
+        <button
+          type="button"
+          className={`panel-collapse-btn${open ? '' : ' collapsed'}`}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={open ? 'Collapse scenarios' : 'Expand scenarios'}
+        >
+          <svg viewBox="0 0 10 6" width="10" height="6" fill="currentColor" aria-hidden="true">
+            <path d="M0 0L5 6L10 0z" />
+          </svg>
+        </button>
+      </div>
+
+      {open && (
+        <div className="sm-body">
+          <div className="sm-save-row">
+            <input
+              className="sm-name-input"
+              type="text"
+              placeholder="Name this scenario…"
+              value={saveName}
+              maxLength={60}
+              onChange={(e) => setSaveName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            />
+            <button
+              type="button"
+              className="sm-save-btn"
+              onClick={handleSave}
+              disabled={legs.length === 0}
+              title={legs.length === 0 ? 'Add at least one leg before saving' : 'Save scenario'}
+            >
+              Save
+            </button>
+          </div>
+
+          {scenarios.length === 0 ? (
+            <p className="sm-empty">No saved scenarios yet. Build a position and click Save.</p>
+          ) : (
+            <ul className="sm-list">
+              {[...scenarios].reverse().map((s) => (
+                <li key={s.id} className="sm-item">
+                  <div className="sm-item-info">
+                    {renamingId === s.id ? (
+                      <input
+                        className="sm-rename-input"
+                        autoFocus
+                        value={renameValue}
+                        maxLength={60}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => handleRenameCommit(s.id)}
+                        onKeyDown={(e) => handleRenameKey(e, s.id)}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="sm-item-name"
+                        title="Click to rename"
+                        onClick={() => {
+                          setRenamingId(s.id)
+                          setRenameValue(s.name)
+                        }}
+                      >
+                        {s.name}
+                      </button>
+                    )}
+                    <span className="sm-item-meta">
+                      {s.ticker}
+                      {s.legs.length > 0 && (
+                        <> · {s.legs.length} leg{s.legs.length !== 1 ? 's' : ''}</>
+                      )}
+                       · {formatDate(s.savedAt)}
+                    </span>
+                  </div>
+
+                  <div className="sm-item-actions">
+                    <button
+                      type="button"
+                      className={`sm-load-btn${loadedId === s.id ? ' sm-load-btn--done' : ''}`}
+                      onClick={() => handleLoad(s.id)}
+                    >
+                      {loadedId === s.id ? 'Loaded' : 'Load'}
+                    </button>
+                    <button
+                      type="button"
+                      className="sm-delete-btn"
+                      onClick={() => deleteScenario(s.id)}
+                      title="Delete scenario"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}

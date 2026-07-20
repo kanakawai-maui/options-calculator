@@ -14,7 +14,7 @@ function normalCdf(x) {
   return probability
 }
 
-function blackScholes({ stockPrice, strike, timeYears, volatility, rate, optionType }) {
+export function blackScholes({ stockPrice, strike, timeYears, volatility, rate, optionType }) {
   if (timeYears <= 0 || volatility <= 0) {
     if (optionType === 'call') {
       return Math.max(stockPrice - strike, 0)
@@ -39,6 +39,10 @@ function blackScholes({ stockPrice, strike, timeYears, volatility, rate, optionT
   )
 }
 
+function normalPdf(x) {
+  return Math.exp(-(x * x) / 2) / Math.sqrt(2 * Math.PI)
+}
+
 /**
  * Black-Scholes delta. Call delta = N(d1); put delta = N(d1) - 1.
  * Returns a value in [-1, 1] representing dPrice/dStock for a single share.
@@ -53,6 +57,68 @@ export function calcDelta({ stockPrice, strike, timeYears, volatility, rate, opt
     (Math.log(stockPrice / strike) + (rate + (volatility * volatility) / 2) * timeYears) /
     sigmaSqrtT
   return optionType === 'call' ? normalCdf(d1) : normalCdf(d1) - 1
+}
+
+/**
+ * Gamma — rate of change of delta with respect to the underlying price.
+ * Same value for calls and puts on the same contract.
+ */
+export function calcGamma({ stockPrice, strike, timeYears, volatility, rate }) {
+  if (timeYears <= 0 || volatility <= 0 || stockPrice <= 0) return 0
+  const sigmaSqrtT = volatility * Math.sqrt(timeYears)
+  const d1 =
+    (Math.log(stockPrice / strike) + (rate + (volatility * volatility) / 2) * timeYears) /
+    sigmaSqrtT
+  return normalPdf(d1) / (stockPrice * sigmaSqrtT)
+}
+
+/**
+ * Theta — time decay per calendar day (negative for long options).
+ * Returned in dollars-per-day for a single share (multiply × 100 for one contract).
+ */
+export function calcTheta({ stockPrice, strike, timeYears, volatility, rate, optionType }) {
+  if (timeYears <= 0 || volatility <= 0 || stockPrice <= 0) return 0
+  const sigmaSqrtT = volatility * Math.sqrt(timeYears)
+  const d1 =
+    (Math.log(stockPrice / strike) + (rate + (volatility * volatility) / 2) * timeYears) /
+    sigmaSqrtT
+  const d2 = d1 - sigmaSqrtT
+  const pdf = normalPdf(d1)
+  const rateDecay = rate * strike * Math.exp(-rate * timeYears)
+  const annualTheta =
+    -(stockPrice * pdf * volatility) / (2 * Math.sqrt(timeYears)) -
+    rateDecay * (optionType === 'call' ? normalCdf(d2) : -normalCdf(-d2))
+  return annualTheta / 365
+}
+
+/**
+ * Vega — change in option price per 1-percentage-point rise in implied volatility.
+ * Returned in dollars-per-1%-IV for a single share.
+ */
+export function calcVega({ stockPrice, strike, timeYears, volatility, rate }) {
+  if (timeYears <= 0 || volatility <= 0 || stockPrice <= 0) return 0
+  const sigmaSqrtT = volatility * Math.sqrt(timeYears)
+  const d1 =
+    (Math.log(stockPrice / strike) + (rate + (volatility * volatility) / 2) * timeYears) /
+    sigmaSqrtT
+  return (stockPrice * normalPdf(d1) * Math.sqrt(timeYears)) / 100
+}
+
+/**
+ * Rho — change in option price per 1-percentage-point rise in the risk-free rate.
+ * Returned in dollars-per-1%-rate for a single share.
+ */
+export function calcRho({ stockPrice, strike, timeYears, volatility, rate, optionType }) {
+  if (timeYears <= 0 || volatility <= 0 || stockPrice <= 0) return 0
+  const sigmaSqrtT = volatility * Math.sqrt(timeYears)
+  const d1 =
+    (Math.log(stockPrice / strike) + (rate + (volatility * volatility) / 2) * timeYears) /
+    sigmaSqrtT
+  const d2 = d1 - sigmaSqrtT
+  if (optionType === 'call') {
+    return (strike * timeYears * Math.exp(-rate * timeYears) * normalCdf(d2)) / 100
+  }
+  return -(strike * timeYears * Math.exp(-rate * timeYears) * normalCdf(-d2)) / 100
 }
 
 /**
@@ -257,5 +323,157 @@ export function buildHeatmap({ spotPrice, legs, moveRangePercent }) {
       .sort((a, b) => a.stockPrice - b.stockPrice),
     maxDTE,
     avgVolatility,
+  }
+}
+
+/**
+ * Compute a price-vs-price aggregate P/L grid for a multi-underlying position.
+ *
+ * @param {object} params
+ * @param {Array}  params.groups          - Array of { ticker, legs, spot, refSpot? }
+ *   groups[0] forms the row axis (priceA), groups[1] forms the column axis (priceB).
+ *   groups[2+] contribute their P/L at their own refSpot to every cell.
+ * @param {number} params.daysElapsed     - Days elapsed from today (0 = now)
+ * @param {number} params.moveRangePercentA - ±% price range for group A
+ * @param {number} params.moveRangePercentB - ±% price range for group B
+ * @param {number} [params.rowsCount=13]  - Number of price levels per axis
+ *
+ * @returns {{
+ *   tickerA: string, tickerB: string, otherTickers: string[],
+ *   pricesA: number[], pricesB: number[],
+ *   grid: Array<Array<{value: number, color: string}>>,
+ *   maxAbs: number,
+ *   spotIdxA: number, spotIdxB: number,
+ *   maxDTE: number,
+ * }}
+ */
+export function buildAggregateHeatmap({
+  groups,
+  daysElapsed = 0,
+  moveRangePercentA = 30,
+  moveRangePercentB = 30,
+  rowsCount = 13,
+}) {
+  const empty = {
+    tickerA: '', tickerB: '', otherTickers: [],
+    pricesA: [], pricesB: [], grid: [], maxAbs: 1,
+    spotIdxA: 0, spotIdxB: 0, maxDTE: 0,
+  }
+  if (!groups || groups.length < 2) return empty
+
+  const nowSeconds = Date.now() / 1000
+
+  // Helper: DTE array for a set of legs
+  function legDTEs(legs) {
+    return legs.map((l) =>
+      Math.max(Math.round((Number(l.expiration) - nowSeconds) / 86400), 1),
+    )
+  }
+
+  // Helper: P/L for one group's legs at a given stock price and daysElapsed
+  function groupPnl(legs, dtesForLegs, stockPrice, elapsed) {
+    let total = 0
+    for (let li = 0; li < legs.length; li++) {
+      const leg = legs[li]
+      const daysRemaining = Math.max(dtesForLegs[li] - elapsed, 0)
+      const timeYears = daysRemaining / 365
+      const volatility = Math.max(Number(leg.impliedVolatility) || 0.25, 0.05)
+      const direction = leg.positionSide === 'sell' ? -1 : 1
+      const estimated = blackScholes({
+        stockPrice,
+        strike: leg.strike,
+        timeYears,
+        volatility,
+        rate: 0.05,
+        optionType: leg.optionType,
+      })
+      total += (estimated - leg.markPrice) * 100 * leg.quantity * direction
+    }
+    return total
+  }
+
+  // Helper: build a linearly-spaced price array ±rangePercent around refSpot
+  function buildPriceLevels(refSpot, rangePercent, count) {
+    const range = Math.max(5, Math.min(200, Number(rangePercent) || 30)) / 100
+    const lo = Math.max(refSpot * (1 - range), 0.01)
+    const hi = refSpot * (1 + range)
+    return Array.from({ length: count }, (_, i) => lo + (hi - lo) * (i / (count - 1)))
+  }
+
+  // Helper: nearest index to a target in a sorted (ascending) price array
+  function nearestIdx(prices, target) {
+    let best = 0
+    let bestDist = Infinity
+    for (let i = 0; i < prices.length; i++) {
+      const d = Math.abs(prices[i] - target)
+      if (d < bestDist) { bestDist = d; best = i }
+    }
+    return best
+  }
+
+  const gA = groups[0]
+  const gB = groups[1]
+  const others = groups.slice(2)
+
+  const refA = gA.refSpot ?? gA.spot
+  const refB = gB.refSpot ?? gB.spot
+
+  const dtesA = legDTEs(gA.legs)
+  const dtesB = legDTEs(gB.legs)
+  const otherDtes = others.map((g) => legDTEs(g.legs))
+
+  const allDTEs = [...dtesA, ...dtesB, ...others.flatMap((g) => legDTEs(g.legs))]
+  const maxDTE = allDTEs.length > 0 ? Math.max(...allDTEs) : 0
+
+  const pricesA = buildPriceLevels(refA, moveRangePercentA, rowsCount)
+  const pricesB = buildPriceLevels(refB, moveRangePercentB, rowsCount)
+
+  // Pre-compute the "other groups" fixed P/L contribution (constant across the whole grid)
+  let fixedOtherPnl = 0
+  for (let k = 0; k < others.length; k++) {
+    const og = others[k]
+    const refOther = og.refSpot ?? og.spot
+    fixedOtherPnl += groupPnl(og.legs, otherDtes[k], refOther, daysElapsed)
+  }
+
+  // Build grid: rows = pricesA descending (top = highest), cols = pricesB ascending
+  const rawGrid = pricesA.map((pA) =>
+    pricesB.map((pB) => {
+      const pnl = groupPnl(gA.legs, dtesA, pA, daysElapsed)
+                + groupPnl(gB.legs, dtesB, pB, daysElapsed)
+                + fixedOtherPnl
+      return pnl
+    }),
+  )
+
+  // Compute maxAbs for color scaling
+  let maxAbs = 0
+  for (const row of rawGrid) {
+    for (const v of row) maxAbs = Math.max(maxAbs, Math.abs(v))
+  }
+  if (maxAbs === 0) maxAbs = 1
+
+  const grid = rawGrid.map((row) =>
+    row.map((value) => ({ value, color: toHeatColor(value, maxAbs) })),
+  )
+
+  // Row-sort descending by priceA so highest price = top row (matches heatmap convention)
+  const sortedPricesA = [...pricesA].reverse()
+  const sortedGrid = [...grid].reverse()
+
+  const spotIdxA = nearestIdx(sortedPricesA, refA)
+  const spotIdxB = nearestIdx(pricesB, refB)
+
+  return {
+    tickerA: gA.ticker,
+    tickerB: gB.ticker,
+    otherTickers: others.map((g) => g.ticker),
+    pricesA: sortedPricesA,
+    pricesB,
+    grid: sortedGrid,
+    maxAbs,
+    spotIdxA,
+    spotIdxB,
+    maxDTE,
   }
 }

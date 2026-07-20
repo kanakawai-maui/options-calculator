@@ -1,4 +1,27 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { blackScholes } from '../utils/optionsMath'
+
+// ─── Scenario persistence (localStorage, survives across sessions) ──────────
+
+const SCENARIOS_KEY = 'ai-options-scenarios'
+
+function loadScenarios() {
+  try {
+    const raw = localStorage.getItem(SCENARIOS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function persistScenarios(scenarios) {
+  try {
+    localStorage.setItem(SCENARIOS_KEY, JSON.stringify(scenarios))
+  } catch {
+    // quota exceeded or private-browsing restriction — silently ignore
+  }
+}
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ??
   (location.hostname === 'localhost' ? 'http://localhost:4000/api' : '/api')
@@ -20,7 +43,9 @@ function getMarkPrice(contract) {
   return null
 }
 
-export const useOptionsStore = create((set, get) => ({
+export const useOptionsStore = create(
+  persist(
+    (set, get) => ({
   ticker: 'AAPL',
   positionSide: 'buy',
   optionType: 'call',
@@ -38,6 +63,7 @@ export const useOptionsStore = create((set, get) => ({
   chainData: null,
   chainCachedAt: null,   // unix seconds when the active chain data was last fetched/cached
   chainSource: null,     // 'live' | 'cache' | 'demo'
+  scenarios: loadScenarios(),
 
   setTicker: (ticker) =>
     set({
@@ -146,9 +172,12 @@ export const useOptionsStore = create((set, get) => ({
             )
           : null
 
-      const nextExpiration = forcedExpiration
-        ? String(payload.selectedExpiration ?? forcedExpiration)
-        : String(reasonableExpiration ?? dates[0] ?? '')
+      // Prefer the expiration the server actually fetched chain data for —
+      // this prevents a mismatch between the displayed date and the chain data.
+      // Fall back to client-computed ~30d default if the server didn't echo one.
+      const nextExpiration = String(
+        payload.selectedExpiration ?? forcedExpiration ?? reasonableExpiration ?? dates[0] ?? '',
+      )
 
       set({
         ticker: symbol,
@@ -206,6 +235,71 @@ export const useOptionsStore = create((set, get) => ({
 
   resetLegs: () => set({ legs: [] }),
 
+  updateLeg: (id, changes) =>
+    set((state) => ({
+      legs: state.legs.map((l) => (l.id === id ? { ...l, ...changes } : l)),
+    })),
+
+  // ─── Scenarios ─────────────────────────────────────────────────────────────
+
+  saveScenario: (name) => {
+    const { ticker, optionType, positionSide, quantity, moveRangePercent, expirationDate, strike, legs } = get()
+    const scenario = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: (name || '').trim() || 'Untitled',
+      savedAt: Date.now(),
+      ticker,
+      optionType,
+      positionSide,
+      quantity,
+      moveRangePercent,
+      expirationDate,
+      strike,
+      legs,
+    }
+    const scenarios = [...get().scenarios, scenario]
+    persistScenarios(scenarios)
+    set({ scenarios })
+  },
+
+  loadScenario: (id) => {
+    const scenario = get().scenarios.find((s) => s.id === id)
+    if (!scenario) return
+    set({
+      ticker: scenario.ticker,
+      optionType: scenario.optionType,
+      positionSide: scenario.positionSide,
+      quantity: scenario.quantity,
+      moveRangePercent: scenario.moveRangePercent,
+      expirationDate: scenario.expirationDate,
+      strike: scenario.strike,
+      legs: scenario.legs,
+      // Clear live chain data so App.jsx's useEffect re-fetches for the restored ticker
+      error: null,
+      expirations: [],
+      contracts: [],
+      selectedContract: null,
+      spotPrice: null,
+      chainData: null,
+      chainCachedAt: null,
+      chainSource: null,
+    })
+  },
+
+  deleteScenario: (id) => {
+    const scenarios = get().scenarios.filter((s) => s.id !== id)
+    persistScenarios(scenarios)
+    set({ scenarios })
+  },
+
+  renameScenario: (id, name) => {
+    const trimmed = (name || '').trim()
+    if (!trimmed) return
+    const scenarios = get().scenarios.map((s) => (s.id === id ? { ...s, name: trimmed } : s))
+    persistScenarios(scenarios)
+    set({ scenarios })
+  },
+
   applyStrategy: (strategyName) => {
     const { chainData, spotPrice, ticker } = get()
     if (!chainData || !spotPrice) return
@@ -261,6 +355,53 @@ export const useOptionsStore = create((set, get) => ({
     const otmCW = nearestAbove(calls, spotPrice * 1.05)
     const otmPW = nearestBelow(puts, spotPrice * 0.95)
 
+    // Calendar spreads: sell near-term (~30 DTE) ATM, buy far-term (~60 DTE) ATM.
+    // Target meaningful time between legs so theta decay differential is real.
+    const nowSec = Date.now() / 1000
+    const { expirations: allExps } = get()
+    const sortedExps = [...allExps].map(Number).filter(Boolean).sort((a, b) => a - b)
+
+    // Pick the expiration closest to a target DTE, with a minimum DTE floor.
+    function pickExp(targetDays, minDays = 0, excludeExp = null) {
+      const targetSec = nowSec + targetDays * 86400
+      const minSec = nowSec + minDays * 86400
+      const candidates = sortedExps.filter((e) => e >= minSec && e !== excludeExp)
+      if (!candidates.length) return sortedExps.find((e) => e !== excludeExp) ?? Math.round(nowSec + targetDays * 86400)
+      return candidates.reduce((best, e) =>
+        Math.abs(e - targetSec) < Math.abs(best - targetSec) ? e : best
+      )
+    }
+
+    // Near leg: closest to 30 DTE, at least 14 days out
+    const nearExp = pickExp(30, 14)
+    // Far leg: closest to 60 DTE, must be at least 21 days after near leg
+    const nearDays = Math.round((nearExp - nowSec) / 86400)
+    const farExp = pickExp(nearDays + 30, nearDays + 21, nearExp)
+    // Expiration whose contracts we actually loaded — use live mark for that one, BS for others
+    const loadedExp = atmCall?.expiration ?? null
+
+    function makeCalendarLeg(contract, optionType, positionSide, expiration) {
+      if (!contract) return null
+      const iv = Math.max(contract.impliedVolatility || 0.25, 0.05)
+      const timeYears = Math.max((expiration - nowSec) / (365 * 86400), 1 / 365)
+      const mark = expiration === loadedExp
+        ? getMarkPrice(contract)
+        : blackScholes({ stockPrice: spotPrice, strike: contract.strike, timeYears, volatility: iv, rate: 0.05, optionType })
+      if (!mark || mark <= 0) return null
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        ticker: symbol,
+        spotPriceAtAdd: spotPrice,
+        optionType,
+        positionSide,
+        quantity: 1,
+        strike: contract.strike,
+        markPrice: Math.max(0.01, Math.round(mark * 100) / 100),
+        impliedVolatility: iv,
+        expiration,
+      }
+    }
+
     const strategies = {
       'long-straddle':    [makeLeg(atmCall, 'call', 'buy'), makeLeg(atmPut, 'put', 'buy')],
       'short-straddle':   [makeLeg(atmCall, 'call', 'sell'), makeLeg(atmPut, 'put', 'sell')],
@@ -282,9 +423,32 @@ export const useOptionsStore = create((set, get) => ({
         makeLeg(otmCW, 'call', 'buy'),
         makeLeg(otmPW, 'put', 'buy'),
       ],
+      'call-calendar': [
+        makeCalendarLeg(atmCall, 'call', 'sell', nearExp),
+        makeCalendarLeg(atmCall, 'call', 'buy',  farExp),
+      ],
+      'put-calendar': [
+        makeCalendarLeg(atmPut, 'put', 'sell', nearExp),
+        makeCalendarLeg(atmPut, 'put', 'buy',  farExp),
+      ],
     }
 
     const newLegs = (strategies[strategyName] ?? []).filter(Boolean)
-    set({ legs: newLegs })
+    set((state) => ({ legs: [...state.legs, ...newLegs] }))
   },
-}))
+  }),
+  {
+    name: 'ai-options-state',
+    storage: createJSONStorage(() => sessionStorage),
+    partialize: (state) => ({
+      ticker: state.ticker,
+      positionSide: state.positionSide,
+      optionType: state.optionType,
+      quantity: state.quantity,
+      moveRangePercent: state.moveRangePercent,
+      expirationDate: state.expirationDate,
+      strike: state.strike,
+      legs: state.legs,
+    }),
+  }
+))

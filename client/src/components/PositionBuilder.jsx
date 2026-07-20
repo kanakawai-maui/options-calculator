@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useOptionsStore } from '../store/optionsStore'
+import { blackScholes } from '../utils/optionsMath'
 import './PositionBuilder.css'
 
 const STRATEGIES = [
@@ -62,9 +64,21 @@ const STRATEGIES = [
     desc: 'Sell ATM call + buy OTM call — credit spread, profits when stock stays down',
     group: 'Spreads',
   },
+  {
+    id: 'call-calendar',
+    label: 'Call Calendar',
+    desc: 'Sell near-term ATM call + buy far-term ATM call — profits from time decay and low movement',
+    group: 'Calendar',
+  },
+  {
+    id: 'put-calendar',
+    label: 'Put Calendar',
+    desc: 'Sell near-term ATM put + buy far-term ATM put — profits from time decay and low movement',
+    group: 'Calendar',
+  },
 ]
 
-const GROUPS = ['Volatility', 'Condors', 'Spreads']
+const GROUPS = ['Volatility', 'Condors', 'Spreads', 'Calendar']
 
 function formatExpDate(exp) {
   if (!exp) return '--'
@@ -193,10 +207,48 @@ export function PositionBuilder() {
     addCurrentLeg,
     removeLeg,
     resetLegs,
+    updateLeg,
     applyStrategy,
     chainData,
     spotPrice,
+    expirations,
   } = useOptionsStore()
+
+  // Re-price a leg when strike or expiry changes.
+  // Uses live chain mark when the leg's (new) expiry matches the loaded chain;
+  // falls back to Black-Scholes otherwise.
+  function repriceForLeg(leg, newStrike, newExpiration) {
+    const strike = newStrike ?? leg.strike
+    const expiration = newExpiration ?? leg.expiration
+    const contracts = leg.optionType === 'call' ? chainData?.calls ?? [] : chainData?.puts ?? []
+    const loadedExp = contracts[0]?.expiration ?? null
+    if (expiration === loadedExp) {
+      const match = contracts.find((c) => c.strike === strike)
+      if (match) {
+        const m = match.mark > 0 ? match.mark
+          : (match.bid > 0 && match.ask > 0) ? (match.bid + match.ask) / 2
+          : match.lastPrice > 0 ? match.lastPrice : null
+        if (m) return {
+          markPrice: Math.max(0.01, Math.round(m * 100) / 100),
+          impliedVolatility: match.impliedVolatility || leg.impliedVolatility,
+        }
+      }
+    }
+    const iv = Math.max(leg.impliedVolatility || 0.25, 0.05)
+    const nowSec = Date.now() / 1000
+    const timeYears = Math.max((expiration - nowSec) / (365 * 86400), 1 / 365)
+    const mark = blackScholes({ stockPrice: spotPrice, strike, timeYears, volatility: iv, rate: 0.05, optionType: leg.optionType })
+    return { markPrice: Math.max(0.01, Math.round(mark * 100) / 100) }
+  }
+
+  // Nearest available strike to a target price for a given option type.
+  function atmStrike(optionType) {
+    const contracts = optionType === 'call' ? chainData?.calls ?? [] : chainData?.puts ?? []
+    if (!contracts.length || !spotPrice) return null
+    return contracts.reduce((best, c) =>
+      Math.abs(c.strike - spotPrice) < Math.abs(best.strike - spotPrice) ? c : best
+    ).strike
+  }
 
   const hasChain = !!(chainData && spotPrice)
   const canAddLeg = !!(selectedContract?.markPrice)
@@ -217,32 +269,48 @@ export function PositionBuilder() {
     return seen
   })()
   const hasMixedTickers = positionTickers.length > 1
+  const [open, setOpen] = useState(true)
 
   return (
     <section className="position-builder">
       <div className="pb-header">
-        <div className="pb-title-row">
-          <h2 className="pb-title">Position Builder</h2>
-          {positionTickers.length > 0 && (
-            <div className="pb-tickers" aria-label="Tickers in position">
-              {positionTickers.map((t) => (
-                <span key={t} className="ticker-chip">
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
-          {legs.length > 0 && (
-            <span className={`pb-net-badge ${netPremium >= 0 ? 'credit' : 'debit'}`}>
-              Net {netPremium >= 0 ? 'Credit' : 'Debit'}: ${Math.abs(netPremium).toFixed(2)}
-            </span>
-          )}
+        <div className="pb-header-text">
+          <div className="pb-title-row">
+            <h2 className="pb-title">Position Builder</h2>
+            {positionTickers.length > 0 && (
+              <div className="pb-tickers" aria-label="Tickers in position">
+                {positionTickers.map((t) => (
+                  <span key={t} className="ticker-chip">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+            {legs.length > 0 && (
+              <span className={`pb-net-badge ${netPremium >= 0 ? 'credit' : 'debit'}`}>
+                Net {netPremium >= 0 ? 'Credit' : 'Debit'}: ${Math.abs(netPremium).toFixed(2)}
+              </span>
+            )}
+          </div>
+          <p className="pb-subtitle">
+            Apply a strategy template or manually add calls/puts to build a multi-leg position.
+          </p>
         </div>
-        <p className="pb-subtitle">
-          Apply a strategy template or manually add calls/puts to build a multi-leg position.
-        </p>
+        <button
+          type="button"
+          className={`panel-collapse-btn${open ? '' : ' collapsed'}`}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={open ? 'Collapse position builder' : 'Expand position builder'}
+        >
+          <svg viewBox="0 0 10 6" width="10" height="6" fill="currentColor" aria-hidden="true">
+            <path d="M0 0L5 6L10 0z" />
+          </svg>
+        </button>
       </div>
 
+      {open && (
+      <>
       {/* Strategy templates */}
       <div className="pb-strategies">
         <div className="pb-section-label">Quick Strategies</div>
@@ -331,7 +399,6 @@ export function PositionBuilder() {
             <table className="legs-table">
               <thead>
                 <tr>
-                  <th>#</th>
                   <th>Ticker</th>
                   <th>Side</th>
                   <th>Type</th>
@@ -339,7 +406,6 @@ export function PositionBuilder() {
                   <th>Premium</th>
                   <th>Qty</th>
                   <th>Expiry</th>
-                  <th>IV</th>
                   <th>Payoff</th>
                   <th></th>
                 </tr>
@@ -347,7 +413,6 @@ export function PositionBuilder() {
               <tbody>
                 {legs.map((leg, i) => (
                   <tr key={leg.id}>
-                    <td className="leg-num">{i + 1}</td>
                     <td>
                       <span className="ticker-chip ticker-chip--table">
                         {(leg.ticker || '—').toUpperCase()}
@@ -363,11 +428,63 @@ export function PositionBuilder() {
                         {leg.optionType === 'call' ? 'Call' : 'Put'}
                       </span>
                     </td>
-                    <td>${leg.strike.toFixed(leg.strike % 1 === 0 ? 0 : 2)}</td>
+                    <td>
+                      {(() => {
+                        const contracts = leg.optionType === 'call' ? chainData?.calls ?? [] : chainData?.puts ?? []
+                        const strikes = contracts.map((c) => c.strike)
+                        const inList = strikes.includes(leg.strike)
+                        return (
+                          <select
+                            className="leg-cell-select"
+                            value={leg.strike}
+                            onChange={(e) => {
+                              const newStrike = Number(e.target.value)
+                              updateLeg(leg.id, { strike: newStrike, ...repriceForLeg(leg, newStrike) })
+                            }}
+                            aria-label={`Strike for leg ${i + 1}`}
+                          >
+                            {!inList && <option value={leg.strike}>${leg.strike}</option>}
+                            {strikes.map((s) => (
+                              <option key={s} value={s}>${s % 1 === 0 ? s : s.toFixed(2)}</option>
+                            ))}
+                          </select>
+                        )
+                      })()}
+                    </td>
                     <td>${leg.markPrice.toFixed(2)}</td>
-                    <td>{leg.quantity}</td>
-                    <td>{formatExpDate(leg.expiration)}</td>
-                    <td>{leg.impliedVolatility ? `${(leg.impliedVolatility * 100).toFixed(0)}%` : '--'}</td>
+                    <td>
+                      <input
+                        type="number"
+                        className="leg-qty-input"
+                        value={leg.quantity}
+                        min={1}
+                        step={1}
+                        onChange={(e) => {
+                          const q = Math.max(1, parseInt(e.target.value) || 1)
+                          updateLeg(leg.id, { quantity: q })
+                        }}
+                        aria-label={`Quantity for leg ${i + 1}`}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        className="leg-cell-select"
+                        value={leg.expiration}
+                        onChange={(e) => {
+                          const newExp = Number(e.target.value)
+                          const newStrike = atmStrike(leg.optionType) ?? leg.strike
+                          updateLeg(leg.id, { expiration: newExp, strike: newStrike, ...repriceForLeg(leg, newStrike, newExp) })
+                        }}
+                        aria-label={`Expiry for leg ${i + 1}`}
+                      >
+                        {expirations.map((exp) => (
+                          <option key={exp} value={Number(exp)}>{formatExpDate(exp)}</option>
+                        ))}
+                        {!expirations.some((e) => Number(e) === leg.expiration) && (
+                          <option value={leg.expiration}>{formatExpDate(leg.expiration)}</option>
+                        )}
+                      </select>
+                    </td>
                     <td className="leg-payoff-cell">
                       <LegPayoffMini leg={leg} spotPrice={leg.spotPriceAtAdd ?? spotPrice} />
                     </td>
@@ -385,7 +502,7 @@ export function PositionBuilder() {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={10} className="legs-total-label">
+                  <td colSpan={8} className="legs-total-label">
                     Net {netPremium >= 0 ? 'Credit Received' : 'Debit Paid'} (position cost × 100 shares/contract)
                   </td>
                   <td className={`legs-total-value ${netPremium >= 0 ? 'credit' : 'debit'}`}>
@@ -396,6 +513,8 @@ export function PositionBuilder() {
             </table>
           </div>
         </div>
+      )}
+      </>
       )}
     </section>
   )

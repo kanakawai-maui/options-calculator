@@ -1,13 +1,204 @@
-/* ─── Layout ──────────────────────────────────────────────────────────────── */
+/* ─── Collapsible panel toggle button ────────────────────────────────────── */
+
+.panel-collapse-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--line-strong);
+  color: var(--text-dim);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.12s, border-color 0.12s;
+}
+.panel-collapse-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.panel-collapse-btn:focus {
+  box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.15);
+  outline: none;
+}
+.panel-collapse-btn svg {
+  display: block;
+  transition: transform 0.18s ease;
+}
+.panel-collapse-btn.collapsed svg {
+  transform: rotate(-90deg);
+}
+
+/* ─── Controls panel header ───────────────────────────────────────────────── */
+
+.controls-panel-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.85rem;
+}
+.controls-panel-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-right: auto;
+}
+
+/* ─── Chain Insights / Analysis wrapper panels ───────────────────────────── */
+
+.insights-panel-wrap {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem;
+  min-width: 0;
+}
+.insights-panel-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.insights-panel-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-right: auto;
+}
+
+/* ─── App shell ───────────────────────────────────────────────────────────── */
+
+:root {
+  --header-h: 52px;
+  --sidebar-w: 740px;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ─── Sticky header ───────────────────────────────────────────────────────── */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  height: var(--header-h);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.sidebar-toggle-btn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--line-strong);
+  color: var(--text-dim);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.sidebar-toggle-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgba(76, 201, 240, 0.06);
+}
+.sidebar-toggle-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.15);
+}
+
+.app-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+/* ─── Body: sidebar + main ────────────────────────────────────────────────── */
+
+.app-body {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+}
+
+/* ─── Sidebar ─────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  position: sticky;
+  top: var(--header-h);
+  max-height: calc(100vh - var(--header-h));
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+  transition: width 0.22s ease, opacity 0.18s ease;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+/* When an inline width is applied (drag resize), skip the CSS transition */
+.sidebar[style] {
+  transition: opacity 0.18s ease;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+
+.sidebar--closed {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+  border-right-color: transparent;
+}
+
+.sidebar-inner {
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.65rem;
+  min-width: var(--sidebar-w);
+}
+
+/* ─── Main content ────────────────────────────────────────────────────────── */
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─── Layout (inside main-content) ───────────────────────────────────────── */
 
 .layout {
-  width: min(1280px, 100% - 2rem);
-  margin: 1.25rem auto 2rem;
+  padding: 0.75rem;
   display: grid;
   gap: 0.75rem;
 }
 
-.hero,
 .controls-panel,
 .heatmap-panel {
   background: var(--panel);
@@ -15,18 +206,10 @@
   border-radius: var(--radius-lg);
 }
 
-/* ─── Hero / Top bar ──────────────────────────────────────────────────────── */
+/* ─── Hero / Top bar (reuse styles for app-header brand) ─────────────────── */
 
-.hero {
-  padding: 0.9rem 1.15rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.hero-title {
+/* .hero-title kept for .app-brand child alignment */
+.app-brand {
   display: flex;
   align-items: baseline;
   gap: 0.65rem;
@@ -74,10 +257,13 @@ h1 {
 .status-dot.open   { background: var(--pos); box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
 .status-dot.closed { background: var(--neg); }
 
-/* ─── Controls ────────────────────────────────────────────────────────────── */
+/* ─── Controls panel (now lives inside sidebar) ───────────────────────────── */
 
 .controls-panel {
   padding: 0.85rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
 }
 
 .controls-grid {
@@ -85,6 +271,11 @@ h1 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
   align-items: start;
+}
+
+/* Inside the sidebar each field gets its own row */
+.sidebar-inner .controls-grid {
+  grid-template-columns: 1fr;
 }
 
 .field--full {
@@ -296,9 +487,23 @@ button:disabled {
 .heatmap-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.heatmap-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.heatmap-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .heatmap-header h2 {
@@ -517,25 +722,20 @@ button:disabled {
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 
-@media (max-width: 900px) {
-  .controls-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+/* ─── Mobile sidebar overlay ─────────────────────────────────────────────── */
+.sidebar-overlay {
+  display: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1199px) {
+  /* On small screens the sidebar is not rendered at all (handled in JS).
+     These rules are defensive but the sidebar element won't exist. */
+
   .layout {
-    width: min(1280px, 100% - 0.75rem);
-    margin-top: 0.75rem;
-    margin-bottom: 1.25rem;
+    padding: 0.6rem;
     gap: 0.6rem;
   }
 
-  .hero {
-    padding: 0.75rem 0.85rem;
-  }
-
-  .controls-panel,
   .heatmap-panel {
     padding: 0.7rem;
   }
@@ -564,8 +764,11 @@ button:disabled {
 }
 
 @media (max-width: 480px) {
+  :root {
+    --sidebar-w: min(420px, 92vw);
+  }
   .controls-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
   .field--full {
     grid-column: 1 / -1;
@@ -575,6 +778,9 @@ button:disabled {
   }
   .hero-status {
     font-size: 0.72rem;
+  }
+  .app-header {
+    padding: 0 0.75rem;
   }
 }
 
@@ -639,7 +845,6 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
-  margin-top: 0.75rem;
 }
 
 @media (max-width: 900px) {
@@ -651,7 +856,6 @@ button:disabled {
 /* ─── Insights (below heatmap) ───────────────────────────────────────────── */
 
 .insights-section {
-  margin-top: 1rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
@@ -776,6 +980,63 @@ button:disabled {
   color: var(--text-dim);
   font-size: 0.7rem;
   line-height: 1.35;
+}
+
+.insight-title-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.info-hover {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.info-hover-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-family: var(--mono-font);
+  line-height: 1;
+  cursor: default;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.info-hover:hover .info-hover-icon,
+.info-hover:focus .info-hover-icon {
+  color: var(--accent);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.info-hover-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  transform: translateX(-50%);
+  width: 230px;
+  background: var(--panel-3, #1a1f2e);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+  z-index: 60;
+  pointer-events: none;
+  white-space: normal;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 .insight-axis {
@@ -1088,8 +1349,403 @@ button:disabled {
   font-weight: 600;
 }
 
+/* ─── Greek surface overlay ───────────────────────────────────────────────── */
+.surface-greek-cell {
+  stroke: none;
+  shape-rendering: geometricPrecision;
+  pointer-events: none;
+}
+
+.insight-greek-select {
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.18rem 0.55rem;
+  border-radius: 4px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-3);
+  color: var(--text-muted);
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.insight-greek-select:hover,
+.insight-greek-select:focus {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--panel-2);
+  outline: none;
+}
+.insight-greek-select option {
+  background: var(--panel-3);
+  color: var(--text);
+}
+
 @media (max-width: 900px) {
   .insight-chart--tall {
     height: 340px;
   }
+}
+
+/* ══════════════════════════════════════════════════
+   View toggle (Individual / Aggregate)
+══════════════════════════════════════════════════ */
+.view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  width: fit-content;
+  margin: 0 0 12px 0;
+}
+
+.view-toggle-btn {
+  padding: 5px 18px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.view-toggle-btn:hover {
+  background: var(--line);
+  color: var(--text);
+}
+
+.view-toggle-btn--active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.view-toggle-btn--active:hover {
+  background: var(--accent);
+}
+
+/* ══════════════════════════════════════════════════
+   Aggregate View
+══════════════════════════════════════════════════ */
+.agg-view {
+  display: contents; /* panels flow directly into the page layout gap */
+}
+
+/* ─── Parameters panel ─── */
+.agg-params-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.65rem;
+}
+
+.agg-param-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.agg-param-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.1rem;
+}
+
+/* Axis pills — amber for Y (rows), violet for X (cols) */
+.agg-axis-pill {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(245, 181, 68, 0.13);
+  color: rgba(245, 181, 68, 0.85);
+  border: 1px solid rgba(245, 181, 68, 0.28);
+}
+
+.agg-axis-pill--b {
+  background: rgba(139, 92, 246, 0.13);
+  color: rgba(139, 92, 246, 0.85);
+  border-color: rgba(139, 92, 246, 0.28);
+}
+
+/* Input + % badge side by side */
+.agg-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Number inputs — match existing select/input style */
+.agg-number-input {
+  width: 90px;
+  padding: 0.3rem 0.45rem;
+  background: var(--panel-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.12s;
+  appearance: textfield;
+}
+
+.agg-number-input::-webkit-outer-spin-button,
+.agg-number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.agg-number-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.12);
+}
+
+.agg-number-input--sm {
+  width: 62px;
+}
+
+/* % deviation badge */
+.agg-pct {
+  font-size: 0.72rem;
+  font-family: var(--mono-font);
+  font-weight: 600;
+  padding: 0.18rem 0.45rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.agg-pct.pos {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.agg-pct.neg {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ─── Sticky days-elapsed slider bar ─── */
+.agg-slider-bar {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+.agg-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+  height: 18px; /* taller hit target */
+}
+
+.agg-slider-endpoints {
+  display: none; /* shown only on narrow screens */
+}
+
+/* ─── 2-D aggregate heatmap table ─── */
+.agg-heatmap-outer {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.agg-y-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  align-self: center;
+  flex-shrink: 0;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.agg-heatmap-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: min(540px, 60vh);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.agg-heatmap-scroll::-webkit-scrollbar { display: none; }
+
+/* Override the base heatmap-table min-width (designed for time-axis = many cols) */
+.agg-heatmap-table {
+  min-width: unset !important;
+  width: 100%;
+  table-layout: auto;
+}
+
+/* Sticky price-label column */
+.agg-heatmap-table tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: right;
+  padding-right: 6px !important;
+  min-width: 48px;
+  width: 48px;
+  background: var(--panel-3);
+}
+
+/* Sticky footer row */
+.agg-heatmap-table tfoot th {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--panel-3);
+}
+
+.agg-heatmap-table tfoot th:first-child {
+  left: 0;
+  z-index: 3;
+}
+
+/* Data cells — square and compact */
+.agg-heatmap-table td {
+  min-width: 54px;
+  width: 54px;
+  height: 36px;
+  padding: 0.18rem 0.15rem;
+}
+
+.agg-x-label {
+  margin: 0.3rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  user-select: none;
+}
+
+/* Spot row — amber highlight */
+.agg-spot-row > td,
+.agg-spot-row > th {
+  border-top: 1.5px solid rgba(245, 181, 68, 0.55) !important;
+  border-bottom: 1.5px solid rgba(245, 181, 68, 0.55) !important;
+}
+
+.agg-spot-price {
+  color: rgba(245, 181, 68, 0.9) !important;
+}
+
+/* Spot col — violet highlight */
+.agg-spot-col {
+  border-left: 1.5px solid rgba(139, 92, 246, 0.55) !important;
+  border-right: 1.5px solid rgba(139, 92, 246, 0.55) !important;
+}
+
+@media (max-width: 900px) {
+  .agg-params-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agg-slider-bar {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .agg-slider-endpoints {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    font-family: var(--mono-font);
+    order: 3;
+  }
+
+  .agg-heatmap-table td,
+  .agg-heatmap-table tbody th {
+    min-width: 40px;
+    width: 40px;
+    font-size: 0.68rem;
+  }
+}
+
+/* ─── Draggable sections ──────────────────────────────────────────────────── */
+
+.draggable-section {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.drag-handle {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  color: var(--text-dim);
+  opacity: 0;
+  border-radius: var(--radius);
+  transition: opacity 0.15s, background 0.12s, color 0.12s;
+  user-select: none;
+}
+
+.draggable-section:hover .drag-handle {
+  opacity: 1;
+}
+
+.drag-handle:hover {
+  color: var(--accent);
+  background: rgba(76, 201, 240, 0.1);
+  opacity: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.draggable-section--dragging {
+  opacity: 0.45;
+}
+
+.draggable-section--over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-lg);
 }

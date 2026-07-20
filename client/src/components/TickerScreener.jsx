@@ -196,6 +196,13 @@ export function TickerScreener({ open, onClose, onSelect }) {
     <div className="ts-overlay" role="dialog" aria-modal="true" aria-label="Ticker screener">
       <div className="ts-backdrop" onClick={onClose} />
       <div className="ts-dialog" ref={dialogRef} tabIndex={-1}>
+        <div className="ts-coming-soon-overlay" aria-hidden="true">
+          <div className="ts-coming-soon-badge">
+            <span className="ts-coming-soon-icon">🚧</span>
+            <span className="ts-coming-soon-title">Coming Soon</span>
+            <span className="ts-coming-soon-sub">The screener is under active development.</span>
+          </div>
+        </div>
         <header className="ts-header">
           <div className="ts-title-block">
             <h2>Advanced Ticker Screener</h2>

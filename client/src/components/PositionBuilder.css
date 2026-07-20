@@ -13,10 +13,17 @@
 .pb-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 1rem;
   flex-wrap: wrap;
   margin-bottom: 0.85rem;
+}
+
+.pb-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .pb-title-row {
@@ -233,7 +240,7 @@
 .legs-table {
   border-collapse: collapse;
   width: 100%;
-  min-width: 680px;
+  min-width: 620px;
   font-family: var(--mono-font);
   font-variant-numeric: tabular-nums;
   font-size: 0.75rem;
@@ -305,6 +312,100 @@
   background: rgba(245, 181, 68, 0.1);
   color: var(--accent-warm);
   border-color: rgba(245, 181, 68, 0.3);
+}
+
+/* ── Editable leg cells (strike select, expiry select, qty input) ──────── */
+
+.leg-cell-select {
+  background: var(--panel-2);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text);
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  padding: 0.12rem 0.22rem;
+  cursor: pointer;
+  max-width: 7rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+.leg-cell-select:hover {
+  border-color: var(--line);
+}
+.leg-cell-select:focus {
+  border-color: var(--accent);
+  outline: none;
+  background: rgba(76, 201, 240, 0.06);
+}
+
+.leg-qty-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text);
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  width: 2.8rem;
+  text-align: center;
+  padding: 0.1rem 0.2rem;
+  transition: border-color 0.15s, background 0.15s;
+  -moz-appearance: textfield;
+}
+.leg-qty-input::-webkit-outer-spin-button,
+.leg-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.leg-qty-input:hover {
+  border-color: var(--line);
+}
+.leg-qty-input:focus {
+  border-color: var(--accent);
+  outline: none;
+  background: rgba(76, 201, 240, 0.06);
+}
+
+/* ── IV input ────────────────────────────────────────────────────────────── */
+
+.leg-iv-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.leg-iv-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text);
+  font-family: var(--mono-font);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  width: 3rem;
+  text-align: right;
+  padding: 0.1rem 0.2rem;
+  transition: border-color 0.15s, background 0.15s;
+  -moz-appearance: textfield;
+}
+.leg-iv-input::-webkit-outer-spin-button,
+.leg-iv-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.leg-iv-input:hover {
+  border-color: var(--line);
+}
+.leg-iv-input:focus {
+  border-color: var(--accent);
+  outline: none;
+  background: rgba(76, 201, 240, 0.06);
+}
+
+.leg-iv-suffix {
+  font-size: 0.7rem;
+  color: var(--muted);
+  user-select: none;
 }
 
 /* ── Mini payoff chart ───────────────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
  * P/L panel for a single underlying: expiration curve + heatmap + horizontal
@@ -39,6 +39,7 @@ export function PositionPnLPanel({
   heatmap,
   headingSuffix,
   showTickerBadge,
+  dragHandle,
 }) {
   const scrollRef = useRef(null)
   const thumbRef = useRef(null)
@@ -46,6 +47,7 @@ export function PositionPnLPanel({
   const isDragging = useRef(false)
   const dragStartX = useRef(0)
   const dragStartScrollLeft = useRef(0)
+  const [open, setOpen] = useState(true)
 
   const updateThumb = useCallback(() => {
     const scroll = scrollRef.current
@@ -143,20 +145,38 @@ export function PositionPnLPanel({
   return (
     <section className="heatmap-panel">
       <div className="heatmap-header">
-        <h2>
-          {ticker && (
-            <span
-              className={`ticker-chip ticker-chip--heading ${
-                showTickerBadge ? '' : 'ticker-chip--sm'
-              }`}
-            >
-              {ticker}
-            </span>
-          )}
-          {headingSuffix}
-        </h2>
-        <p>Rows: stock price · Columns: days to expiration</p>
+        <div className="heatmap-header-text">
+          <h2>
+            {ticker && (
+              <span
+                className={`ticker-chip ticker-chip--heading ${
+                  showTickerBadge ? '' : 'ticker-chip--sm'
+                }`}
+              >
+                {ticker}
+              </span>
+            )}
+            {headingSuffix}
+          </h2>
+          <p>Rows: stock price · Columns: days to expiration</p>
+        </div>
+        <div className="heatmap-header-actions">
+          {dragHandle}
+          <button
+            type="button"
+            className={`panel-collapse-btn${open ? '' : ' collapsed'}`}
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={open ? 'Collapse P/L panel' : 'Expand P/L panel'}
+          >
+            <svg viewBox="0 0 10 6" width="10" height="6" fill="currentColor" aria-hidden="true">
+              <path d="M0 0L5 6L10 0z" />
+            </svg>
+          </button>
+        </div>
       </div>
+      {open && (
+        <>
 
       {heatmap?.expiryCurve?.length > 1 ? (
         <div className="curve-panel">
@@ -294,6 +314,8 @@ export function PositionPnLPanel({
               onPointerUp={onThumbPointerUp}
             />
           </div>
+        </>
+      )}
         </>
       )}
     </section>

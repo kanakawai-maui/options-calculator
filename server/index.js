@@ -363,14 +363,18 @@ async function fetchFromMassive(ticker, requestedExpiration) {
 
   if (!expirationDates.length) throw new Error('Massive: no expiration dates parsed')
 
-  // Step 2: Select closest expiration to the requested one, or first available
+  // Step 2: Select closest expiration to the requested one, or default to ~30 days out
+  const _nowSec = Date.now() / 1000
   let selectedExpiration
   if (requestedExpiration) {
     selectedExpiration = expirationDates.reduce((best, e) =>
       Math.abs(e - requestedExpiration) < Math.abs(best - requestedExpiration) ? e : best,
     )
   } else {
-    selectedExpiration = expirationDates[0]
+    const _target30 = _nowSec + 30 * 86400
+    selectedExpiration = expirationDates.reduce((best, e) =>
+      Math.abs(e - _target30) < Math.abs(best - _target30) ? e : best,
+    )
   }
   const selectedDate = sortedDates[expirationDates.indexOf(selectedExpiration)]
 
@@ -550,7 +554,13 @@ app.get('/api/option-chain', async (request, response) => {
 
         let selectedExpiration = expiration
         if (!selectedExpiration || !expirationDates.includes(selectedExpiration)) {
-          selectedExpiration = expirationDates[0] || null
+          // Default to the expiration closest to ~30 days out (matches client logic)
+          const nowSec = Date.now() / 1000
+          const target30 = nowSec + 30 * 86400
+          selectedExpiration = expirationDates.length > 0
+            ? expirationDates.reduce((best, e) =>
+                Math.abs(e - target30) < Math.abs(best - target30) ? e : best)
+            : null
         }
 
         if (selectedExpiration) {

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { calcDelta, logNormalPdf } from '../utils/optionsMath'
+import { calcDelta, calcGamma, calcTheta, calcVega, logNormalPdf } from '../utils/optionsMath'
 import './Insights.css'
 
 const CHART_W = 960
@@ -37,6 +37,27 @@ function SingleTickerBadge({ ticker }) {
       <span className="insight-tickers-label">Underlying:</span>
       <span className="ticker-chip ticker-chip--sm">{ticker}</span>
     </div>
+  )
+}
+
+function InfoHover({ text }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <span
+      className="info-hover"
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+      onFocus={() => setVisible(true)}
+      onBlur={() => setVisible(false)}
+      tabIndex={0}
+      role="button"
+      aria-label="Chart info"
+    >
+      <span className="info-hover-icon">?</span>
+      {visible && (
+        <span className="info-hover-tooltip" role="tooltip">{text}</span>
+      )}
+    </span>
   )
 }
 
@@ -141,7 +162,10 @@ function ProbOfProfit({ spotPrice, heatmap, ticker }) {
     <div className="insight-panel">
       <div className="insight-header">
         <div className="insight-title-block">
-          <div className="insight-title">Probability of Profit</div>
+          <div className="insight-title-row">
+            <div className="insight-title">Probability of Profit</div>
+            <InfoHover text="Bell curve shows the log-normal price distribution at expiration derived from implied volatility. Green area = profit zone, red = loss zone. PoP is the probability that the position expires in profit." />
+          </div>
           <SingleTickerBadge ticker={ticker} />
         </div>
         <div className="insight-badges">
@@ -271,7 +295,10 @@ function VolatilitySkew({ chainData, spotPrice, activelegs, ticker }) {
     <div className="insight-panel">
       <div className="insight-header">
         <div className="insight-title-block">
-          <div className="insight-title">Implied Volatility Skew</div>
+          <div className="insight-title-row">
+            <div className="insight-title">Implied Volatility Skew</div>
+            <InfoHover text="IV plotted at each strike for calls (green) and puts (red). A steep put-side skew means the market is pricing in more downside risk — puts are more expensive relative to calls." />
+          </div>
           <SingleTickerBadge ticker={ticker} />
         </div>
         <div className="insight-badges">
@@ -424,7 +451,10 @@ function DeltaProfile({ activelegs, spotPrice, heatmap, ticker }) {
     <div className="insight-panel">
       <div className="insight-header">
         <div className="insight-title-block">
-          <div className="insight-title">Position Delta Profile</div>
+          <div className="insight-title-row">
+            <div className="insight-title">Position Delta Profile</div>
+            <InfoHover text="Position delta across stock prices. Positive delta = bullish exposure, negative = bearish. Zero crossings show where your directional bias flips as the underlying moves." />
+          </div>
           <SingleTickerBadge ticker={ticker} />
         </div>
         <div className="insight-badges">
@@ -530,7 +560,10 @@ function OpenInterestMaxPain({ chainData, spotPrice, ticker }) {
     <div className="insight-panel">
       <div className="insight-header">
         <div className="insight-title-block">
-          <div className="insight-title">Open Interest &amp; Max Pain</div>
+          <div className="insight-title-row">
+            <div className="insight-title">Open Interest &amp; Max Pain</div>
+            <InfoHover text="Open interest by strike for calls (↑) and puts (↓). Max Pain is the strike where option writers lose the least — prices tend to gravitate here as expiration approaches. P/C ratio > 1 signals bearish positioning." />
+          </div>
           <SingleTickerBadge ticker={ticker} />
         </div>
         <div className="insight-badges">
@@ -583,7 +616,7 @@ function OpenInterestMaxPain({ chainData, spotPrice, ticker }) {
 
 /* ─────────────────────────── 5. 3D P/L Surface ──────────────────────────── */
 
-function PnlSurface({ spotPrice, heatmap, ticker }) {
+function PnlSurface({ spotPrice, heatmap, ticker, legs = [] }) {
   const stats = useMemo(() => {
     if (!heatmap?.rows?.length || !spotPrice) return null
     const rowsAsc = [...heatmap.rows].sort((a, b) => a.stockPrice - b.stockPrice)
@@ -680,7 +713,52 @@ function PnlSurface({ spotPrice, heatmap, ticker }) {
   const [pitch, setPitch] = useState(INITIAL_PITCH)
   const [dragging, setDragging] = useState(false)
   const [showScenarios, setShowScenarios] = useState(true)
+  const [greekOverlay, setGreekOverlay] = useState('none')
   const dragRef = useRef(null)
+
+  const greekStats = useMemo(() => {
+    if (!stats || !legs.length || greekOverlay === 'none') return null
+    const nowSeconds = Date.now() / 1000
+    const legDTEs = legs.map((l) =>
+      Math.max(Math.round((Number(l.expiration) - nowSeconds) / 86400), 1),
+    )
+
+    let maxAbs = 0
+    let maxVal = -Infinity
+    let minVal = Infinity
+
+    const grid = stats.rows.map((row) =>
+      stats.sampledDayIdx.map((dayOrig) => {
+        let total = 0
+        for (let li = 0; li < legs.length; li++) {
+          const leg = legs[li]
+          const daysRemaining = Math.max(legDTEs[li] - dayOrig, 0)
+          const timeYears = daysRemaining / 365
+          const volatility = Math.max(Number(leg.impliedVolatility) || 0.25, 0.05)
+          const direction = leg.positionSide === 'sell' ? -1 : 1
+          const qty = leg.quantity ?? 1
+          let v = 0
+          if (greekOverlay === 'delta') {
+            v = calcDelta({ stockPrice: row.stockPrice, strike: leg.strike, timeYears, volatility, rate: 0.05, optionType: leg.optionType })
+          } else if (greekOverlay === 'gamma') {
+            v = calcGamma({ stockPrice: row.stockPrice, strike: leg.strike, timeYears, volatility, rate: 0.05 })
+          } else if (greekOverlay === 'theta') {
+            v = calcTheta({ stockPrice: row.stockPrice, strike: leg.strike, timeYears, volatility, rate: 0.05, optionType: leg.optionType })
+          } else if (greekOverlay === 'vega') {
+            v = calcVega({ stockPrice: row.stockPrice, strike: leg.strike, timeYears, volatility, rate: 0.05 })
+          }
+          total += v * direction * qty * 100
+        }
+        if (Math.abs(total) > maxAbs) maxAbs = Math.abs(total)
+        if (total > maxVal) maxVal = total
+        if (total < minVal) minVal = total
+        return total
+      }),
+    )
+
+    if (maxAbs === 0) maxAbs = 1
+    return { grid, maxAbs, maxVal, minVal }
+  }, [stats, legs, greekOverlay])
 
   const onPointerDown = useCallback((e) => {
     if (e.button !== undefined && e.button !== 0) return
@@ -774,6 +852,46 @@ function PnlSurface({ spotPrice, heatmap, ticker }) {
   }
   quads.sort((a, b) => a.depth - b.depth)
 
+  const GREEK_COLORS = {
+    delta: (v, a) => v >= 0 ? `rgba(99,179,237,${a})` : `rgba(251,146,60,${a})`,
+    gamma: (_v, a) => `rgba(192,132,252,${a})`,
+    theta: (v, a) => v >= 0 ? `rgba(99,179,237,${a})` : `rgba(251,146,60,${a})`,
+    vega:  (_v, a) => `rgba(45,212,191,${a})`,
+  }
+
+  const greekQuads = greekStats
+    ? (() => {
+        const result = []
+        const colorFn = GREEK_COLORS[greekOverlay] ?? GREEK_COLORS.delta
+        for (let j = 0; j < nD - 1; j++) {
+          for (let i = 0; i < nP - 1; i++) {
+            const v00 = greekStats.grid[i][j]
+            const v10 = greekStats.grid[i + 1][j]
+            const v11 = greekStats.grid[i + 1][j + 1]
+            const v01 = greekStats.grid[i][j + 1]
+            // Scale Greek value to occupy same vertical range as P&L surface
+            const scale = stats.maxAbs / greekStats.maxAbs
+            const p00 = project(i, j, v00 * scale)
+            const p10 = project(i + 1, j, v10 * scale)
+            const p11 = project(i + 1, j + 1, v11 * scale)
+            const p01 = project(i, j + 1, v01 * scale)
+            const avgV = (v00 + v10 + v11 + v01) / 4
+            const intensity = Math.min(Math.abs(avgV) / greekStats.maxAbs, 1)
+            const alpha = (0.18 + intensity * 0.42).toFixed(3)
+            const depth = (p00.z + p10.z + p11.z + p01.z) / 4
+            result.push({
+              key: `gq-${i}-${j}`,
+              points: `${p00.x.toFixed(1)},${p00.y.toFixed(1)} ${p10.x.toFixed(1)},${p10.y.toFixed(1)} ${p11.x.toFixed(1)},${p11.y.toFixed(1)} ${p01.x.toFixed(1)},${p01.y.toFixed(1)}`,
+              fill: colorFn(avgV, alpha),
+              depth,
+            })
+          }
+        }
+        result.sort((a, b) => a.depth - b.depth)
+        return result
+      })()
+    : []
+
   const dayWires = stats.sampledDayIdx.map((_, j) => {
     let depthSum = 0
     const pts = stats.rows.map((_, i) => {
@@ -819,7 +937,10 @@ function PnlSurface({ spotPrice, heatmap, ticker }) {
     <div className="insight-panel insight-panel--full">
       <div className="insight-header">
         <div className="insight-title-block">
-          <div className="insight-title">3D P/L Surface &mdash; Price &times; Time</div>
+          <div className="insight-title-row">
+            <div className="insight-title">3D P/L Surface &mdash; Price &times; Time</div>
+            <InfoHover text="Total P/L at every combination of stock price (rows) and days elapsed (columns). Amber ridge = flat stock (pure theta decay). Colored paths = ±2σ, ±1σ, 0σ lognormal scenarios. Drag to rotate, double-click to reset." />
+          </div>
           <SingleTickerBadge ticker={ticker} />
         </div>
         <div className="insight-badges">
@@ -837,6 +958,18 @@ function PnlSurface({ spotPrice, heatmap, ticker }) {
           >
             {showScenarios ? 'Hide scenarios' : 'Show scenarios'}
           </button>
+          <select
+            className="insight-greek-select"
+            value={greekOverlay}
+            onChange={(e) => setGreekOverlay(e.target.value)}
+            aria-label="Greek surface overlay"
+          >
+            <option value="none">Greeks: Off</option>
+            <option value="delta">Overlay: Delta</option>
+            <option value="gamma">Overlay: Gamma</option>
+            <option value="theta">Overlay: Theta</option>
+            <option value="vega">Overlay: Vega</option>
+          </select>
           <button type="button" className="insight-reset-btn" onClick={resetView}>Reset view</button>
         </div>
       </div>
@@ -872,6 +1005,9 @@ function PnlSurface({ spotPrice, heatmap, ticker }) {
         />
         {quads.map((q) => (
           <polygon key={q.key} points={q.points} fill={q.fill} className="surface-cell" />
+        ))}
+        {greekQuads.map((q) => (
+          <polygon key={q.key} points={q.points} fill={q.fill} className="surface-greek-cell" />
         ))}
         {dayWires.map((w) => (
           <polyline key={w.key} points={w.points} className={`surface-wire ${w.isBack ? 'surface-wire-expiry' : ''} ${w.isFront ? 'surface-wire-today' : ''}`} />
@@ -956,6 +1092,37 @@ function PnlSurface({ spotPrice, heatmap, ticker }) {
             drag to rotate &middot; double-click to reset
           </text>
         ) : null}
+        {greekStats && !dragging && (() => {
+          const GREEK_META = {
+            delta: { label: 'Delta', color: '#63b3ed', negColor: '#fb923c', unit: 'Δ' },
+            gamma: { label: 'Gamma', color: '#c084fc', negColor: '#c084fc', unit: 'Γ' },
+            theta: { label: 'Theta ($/day)', color: '#63b3ed', negColor: '#fb923c', unit: 'Θ' },
+            vega:  { label: 'Vega ($/1%IV)', color: '#2dd4bf', negColor: '#2dd4bf', unit: 'V' },
+          }
+          const meta = GREEK_META[greekOverlay]
+          if (!meta) return null
+          const hasNeg = greekStats.minVal < 0
+          const posSign = greekStats.maxVal >= 0 ? '+' : ''
+          const negSign = greekStats.minVal < 0 ? '−' : ''
+          return (
+            <g className="surface-greek-legend" transform={`translate(${W - 180}, 16)`}>
+              <rect x={-6} y={-14} width={176} height={hasNeg ? 62 : 48} rx={6} className="surface-legend-bg" />
+              <text x={0} y={0} className="surface-legend-title">{meta.label} overlay</text>
+              <rect x={0} y={12} width={14} height={10} rx={2} fill={meta.color} opacity={0.7} />
+              <text x={20} y={21} className="surface-legend-label">
+                Max: {posSign}{greekStats.maxVal.toFixed(2)}
+              </text>
+              {hasNeg && (
+                <>
+                  <rect x={0} y={30} width={14} height={10} rx={2} fill={meta.negColor} opacity={0.7} />
+                  <text x={20} y={39} className="surface-legend-label">
+                    Min: {negSign}{Math.abs(greekStats.minVal).toFixed(2)}
+                  </text>
+                </>
+              )}
+            </g>
+          )
+        })()}
       </svg>
       <p className="insight-caption">
         The surface shows total P/L at every combination of stock price and days elapsed. Amber
@@ -970,28 +1137,49 @@ function PnlSurface({ spotPrice, heatmap, ticker }) {
 
 /* ───────────────────────── Chain Insights strip ────────────────────────── */
 
-export function ChainInsights({ chainData, spotPrice, activelegs = [], ticker }) {
+export function ChainInsights({ chainData, spotPrice, activelegs = [], ticker, dragHandle }) {
+  const [open, setOpen] = useState(true)
   if (!chainData || !spotPrice || !ticker) return null
   return (
-    <div className="chain-insights-strip">
-      <VolatilitySkew
-        chainData={chainData}
-        spotPrice={spotPrice}
-        activelegs={activelegs}
-        ticker={ticker}
-      />
-      <OpenInterestMaxPain
-        chainData={chainData}
-        spotPrice={spotPrice}
-        ticker={ticker}
-      />
-    </div>
+    <section className="insights-panel-wrap">
+      <div className="insights-panel-header">
+        <span className="insights-panel-title">Chain Insights</span>
+        {dragHandle}
+        <button
+          type="button"
+          className={`panel-collapse-btn${open ? '' : ' collapsed'}`}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={open ? 'Collapse chain insights' : 'Expand chain insights'}
+        >
+          <svg viewBox="0 0 10 6" width="10" height="6" fill="currentColor" aria-hidden="true">
+            <path d="M0 0L5 6L10 0z" />
+          </svg>
+        </button>
+      </div>
+      {open && (
+        <div className="chain-insights-strip">
+          <VolatilitySkew
+            chainData={chainData}
+            spotPrice={spotPrice}
+            activelegs={activelegs}
+            ticker={ticker}
+          />
+          <OpenInterestMaxPain
+            chainData={chainData}
+            spotPrice={spotPrice}
+            ticker={ticker}
+          />
+        </div>
+      )}
+    </section>
   )
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
-export function Insights({ groups = [] }) {
+export function Insights({ groups = [], aggregateMode = false, dragHandle }) {
+  const [open, setOpen] = useState(true)
   const validGroups = groups.filter(
     (g) => g && g.spot && g.legs && g.legs.length > 0 && g.heatmap,
   )
@@ -999,24 +1187,23 @@ export function Insights({ groups = [] }) {
 
   const multi = validGroups.length > 1
 
-  if (!multi) {
+  const content = !multi ? (
     // Single underlying — panels are direct grid children for natural 2-col flow:
     // [PoP]    [Delta]   ← row 1
-    // [IVSkew] [OI]      ← row 2
-    // [3D Surface — full width]  ← row 3
-    const g = validGroups[0]
-    return (
-      <div className="insights-section insights-section--single">
-        <ProbOfProfit spotPrice={g.spot} heatmap={g.heatmap} ticker={g.ticker} />
-        <DeltaProfile activelegs={g.legs} spotPrice={g.spot} heatmap={g.heatmap} ticker={g.ticker} />
-        <PnlSurface spotPrice={g.spot} heatmap={g.heatmap} ticker={g.ticker} />
-      </div>
-    )
-  }
-
-  // Multi underlying — side-by-side comparison groups with PoP + Delta,
-  // then full-width 3D surfaces per underlying, then chain panels
-  return (
+    // [3D Surface — full width]  ← row 2
+    (() => {
+      const g = validGroups[0]
+      return (
+        <div className="insights-section insights-section--single">
+          <ProbOfProfit spotPrice={g.spot} heatmap={g.heatmap} ticker={g.ticker} />
+          <DeltaProfile activelegs={g.legs} spotPrice={g.spot} heatmap={g.heatmap} ticker={g.ticker} />
+          <PnlSurface spotPrice={g.spot} heatmap={g.heatmap} ticker={g.ticker} legs={g.legs} />
+        </div>
+      )
+    })()
+  ) : (
+    // Multi underlying — side-by-side comparison groups with PoP + Delta,
+    // then full-width 3D surfaces per underlying (hidden in aggregate mode — shown in AggregateView)
     <div className="insights-section insights-section--multi">
       {validGroups.map((g) => (
         <div key={g.ticker} className="insights-group insights-group--multi">
@@ -1030,9 +1217,30 @@ export function Insights({ groups = [] }) {
           <DeltaProfile activelegs={g.legs} spotPrice={g.spot} heatmap={g.heatmap} ticker={g.ticker} />
         </div>
       ))}
-      {validGroups.map((g) => (
-        <PnlSurface key={`surface-${g.ticker}`} spotPrice={g.spot} heatmap={g.heatmap} ticker={g.ticker} />
+      {!aggregateMode && validGroups.map((g) => (
+        <PnlSurface key={`surface-${g.ticker}`} spotPrice={g.spot} heatmap={g.heatmap} ticker={g.ticker} legs={g.legs} />
       ))}
     </div>
+  )
+
+  return (
+    <section className="insights-panel-wrap">
+      <div className="insights-panel-header">
+        <span className="insights-panel-title">Analysis</span>
+        {dragHandle}
+        <button
+          type="button"
+          className={`panel-collapse-btn${open ? '' : ' collapsed'}`}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label={open ? 'Collapse analysis' : 'Expand analysis'}
+        >
+          <svg viewBox="0 0 10 6" width="10" height="6" fill="currentColor" aria-hidden="true">
+            <path d="M0 0L5 6L10 0z" />
+          </svg>
+        </button>
+      </div>
+      {open && content}
+    </section>
   )
 }

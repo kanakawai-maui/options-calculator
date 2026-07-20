@@ -1,3 +1,50 @@
+/* ─── Coming Soon overlay ────────────────────────────────────────────────── */
+
+.ts-coming-soon-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(4, 8, 14, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ts-coming-soon-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(12, 18, 28, 0.88);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 2.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.ts-coming-soon-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.ts-coming-soon-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text);
+}
+
+.ts-coming-soon-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* ─── Overlay ─────────────────────────────────────────────────────────────── */
 
 .ts-overlay {
