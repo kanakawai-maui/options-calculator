@@ -43,8 +43,30 @@ const express = require('express')
 const cors = require('cors')
 const helmet = require('helmet')
 const rateLimit = require('express-rate-limit')
+const admin = require('firebase-admin')
 const YahooFinance = require('yahoo-finance2').default
 const yahooFinance = new YahooFinance({ suppressNotices: ['yahooSurvey'] })
+
+// ─── Firebase Admin (token verification only — no service account needed) ────
+if (process.env.FIREBASE_PROJECT_ID) {
+  admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID })
+} else {
+  console.warn('[auth] FIREBASE_PROJECT_ID not set — /api/screener will be unprotected')
+}
+
+async function requireAuth(req, res, next) {
+  const header = req.headers['authorization'] || ''
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required.' })
+  }
+  try {
+    req.user = await admin.auth().verifyIdToken(token)
+    next()
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token.' })
+  }
+}
 
 const app = express()
 const PORT = Number(process.env.PORT || 4000)
@@ -292,7 +314,7 @@ async function screenTicker(symbol, targetDTE) {
   }
 }
 
-app.post('/api/screener', async (request, response) => {
+app.post('/api/screener', requireAuth, async (request, response) => {
   const targetDTE = Math.min(Math.max(Number(request.body?.targetDTE) || 30, 1), 365)
   const rawTickers =
     Array.isArray(request.body?.tickers) && request.body.tickers.length > 0

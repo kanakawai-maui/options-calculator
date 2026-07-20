@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import './Legal.css'
 
 // ─── Add your legal content below ─────────────────────────────────────────
@@ -18,7 +19,7 @@ By using this application, you acknowledge that you assume all risks associated 
 export function Legal() {
   return (
     <div className="legal-wrap">
-      <a href="#/" className="legal-back">← Back to app</a>
+      <Link to="/" className="legal-back">← Back to app</Link>
 
       <article className="legal-article">
         <h1>Legal</h1>

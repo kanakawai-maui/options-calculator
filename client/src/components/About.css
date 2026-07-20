@@ -1,0 +1,120 @@
+/* About shares nav/footer styles from Home.css — import both */
+@import './Home.css';
+
+.about-wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.about-article {
+  width: min(760px, 100% - 4rem);
+  margin: 3rem auto 4rem;
+  flex: 1;
+}
+
+.about-header {
+  margin-bottom: 3rem;
+}
+
+.about-tag {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1rem;
+}
+
+.about-header h1 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  margin: 0 0 1rem;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.about-lead {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.about-section {
+  margin-bottom: 2.5rem;
+}
+
+.about-section h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.about-section p {
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+  line-height: 1.75;
+  margin: 0.75rem 0;
+}
+
+.about-section ul {
+  margin: 0.75rem 0;
+  padding-left: 1.4rem;
+}
+
+.about-section ul li {
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 0.35rem;
+}
+
+.about-section strong {
+  color: var(--text);
+}
+
+.about-callout {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  margin: 1.25rem 0;
+}
+
+.about-callout--warn {
+  background: color-mix(in srgb, var(--accent-warm) 8%, var(--panel-2));
+  border: 1px solid color-mix(in srgb, var(--accent-warm) 30%, transparent);
+  color: var(--text-muted);
+}
+
+.about-callout--warn strong {
+  color: var(--accent-warm);
+}
+
+.about-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.about-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .about-article {
+    width: calc(100% - 2.5rem);
+    margin: 2rem auto 3rem;
+  }
+}
