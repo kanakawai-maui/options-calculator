@@ -15,7 +15,11 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function signIn() {
-    await signInWithPopup(auth, googleProvider)
+    try {
+      await signInWithPopup(auth, googleProvider)
+    } catch (e) {
+      console.error('Sign in error:', e.code, e.message)
+    }
   }
 
   async function signOut() {
