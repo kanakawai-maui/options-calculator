@@ -19,7 +19,7 @@ export function Home() {
         <div className="home-hero-badge">Free &amp; Open to Everyone</div>
         <h1 className="home-hero-title">
           Learn options by<br />
-          <span className="home-hero-accent">doing the math.</span>
+          <span className="home-hero-accent">seeing the math.</span>
         </h1>
         <p className="home-hero-sub">
           A hands-on calculator for understanding how options are priced, how strategies
