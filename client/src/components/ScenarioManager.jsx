@@ -66,7 +66,7 @@ export function ScenarioManager() {
     }
     setConfirmDeleteId(id)
     if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current)
-    confirmTimerRef.current = setTimeout(() => setConfirmDeleteId(null), 3000)
+    confirmTimerRef.current = setTimeout(() => setConfirmDeleteId(null), 5000)
   }
 
   const handleRenameCommit = (id) => {

@@ -80,7 +80,7 @@ export function TickerSearch({ value, onSelect }) {
   })
   const inputRef = useRef(null)
   const ref = useRef(null)
-  const { chainCachedAt, chainSource } = useOptionsStore()
+  const { chainCachedAt, chainSource, fetchChain } = useOptionsStore()
 
   // Sync when value changes externally (e.g. store reset)
   useEffect(() => {
@@ -179,6 +179,15 @@ export function TickerSearch({ value, onSelect }) {
           </div>
           <div className="stl-right">
             <DataAgeBadge cachedAt={chainCachedAt} source={chainSource} />
+            <button
+              type="button"
+              className="stl-refresh-btn"
+              onClick={(e) => { e.stopPropagation(); fetchChain() }}
+              title="Refresh option chain data"
+              aria-label="Refresh option chain data"
+            >
+              ↻
+            </button>
             <span className="pt-chevron stl-edit" aria-hidden="true">✎</span>
           </div>
         </button>

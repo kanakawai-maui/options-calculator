@@ -51,6 +51,14 @@ export function PositionPnLPanel({
   const [open, setOpen] = useState(true)
   const [includePremium, setIncludePremium] = useState(true)
 
+  const maxDTE = heatmap?.maxDTE ?? 0
+  const [selectedDay, setSelectedDay] = useState(maxDTE)
+
+  // Reset slider to expiration whenever the position changes
+  useEffect(() => {
+    setSelectedDay(maxDTE)
+  }, [maxDTE])
+
   // Net premium offset: the constant shift added to P/L values when premium is excluded.
   // Long leg: adds back the cost paid → shows gross payoff
   // Short leg: removes the credit received → shows gross liability
@@ -61,12 +69,27 @@ export function PositionPnLPanel({
     }, 0)
   , [legs])
 
-  // Adjusted expiry curve — shifts values by the premium offset when toggle is off
+  // Raw curve for the selected day — expiry column when at max, otherwise pull
+  // the matching day-column from the heatmap rows (all cells are pre-computed)
+  const rawActiveCurve = useMemo(() => {
+    if (selectedDay >= maxDTE || !heatmap?.rows?.length) {
+      return heatmap?.expiryCurve ?? []
+    }
+    return (heatmap.rows ?? [])
+      .map(row => ({
+        stockPrice: row.stockPrice,
+        value: row.cells?.[selectedDay]?.value ?? 0,
+        probability: row.cells?.[selectedDay]?.probability ?? 0,
+      }))
+      .sort((a, b) => a.stockPrice - b.stockPrice)
+  }, [heatmap, selectedDay, maxDTE])
+
+  // Adjusted curve — shifts values by the premium offset when toggle is off
   const adjustedCurve = useMemo(() => {
-    const raw = heatmap?.expiryCurve ?? []
+    const raw = rawActiveCurve
     if (includePremium || netPremiumOffset === 0 || legs.length === 0) return raw
     return raw.map(pt => ({ ...pt, value: pt.value + netPremiumOffset }))
-  }, [heatmap?.expiryCurve, includePremium, netPremiumOffset, legs.length])
+  }, [rawActiveCurve, includePremium, netPremiumOffset, legs.length])
 
   // Unlimited-risk detection: naked short call with no covering long call
   const isUnlimitedRisk = useMemo(() =>
@@ -217,7 +240,12 @@ export function PositionPnLPanel({
             )}
             {headingSuffix}
           </h2>
-          <p>Rows: stock price · Columns: days to expiration</p>
+          <p>Rows: stock price · Columns: days to expiration
+            <span className="heatmap-legend" aria-label="Color key">
+              <span className="heatmap-legend-profit">● Profit</span>
+              <span className="heatmap-legend-loss">● Loss</span>
+            </span>
+          </p>
         </div>
         <div className="heatmap-header-actions">
           {dragHandle}
@@ -237,11 +265,11 @@ export function PositionPnLPanel({
               className={`curve-premium-toggle${!includePremium ? ' active' : ''}`}
               onClick={() => setIncludePremium(v => !v)}
               title={includePremium
-                ? 'Showing net P/L after deducting premium cost. Click to show gross payoff.'
-                : 'Showing gross payoff without premium deduction. Click to show net P/L.'}
+                ? 'Net P/L — premium cost deducted. Click to see gross payoff before premium.'
+                : 'Gross Payoff — premium not deducted. Click to see net P/L after premium.'}
               aria-pressed={!includePremium}
             >
-              {includePremium ? 'Incl. Premium' : 'Excl. Premium'}
+              {includePremium ? 'Net P/L' : 'Gross Payoff'}
             </button>
           )}
           <button
@@ -264,8 +292,17 @@ export function PositionPnLPanel({
         <div className="curve-panel">
           <div className="curve-title-row">
             <span className="curve-title">
-              {includePremium ? 'P/L at Expiration' : 'Gross Payoff at Expiration'}
+              {selectedDay >= maxDTE
+                ? (includePremium ? 'P/L at Expiration' : 'Gross Payoff at Expiration')
+                : (includePremium
+                    ? `P/L on ${heatmap?.dayLabels?.[selectedDay] ?? ''}`
+                    : `Gross Payoff on ${heatmap?.dayLabels?.[selectedDay] ?? ''}`)}
             </span>
+            {selectedDay < maxDTE && maxDTE > 1 && (
+              <span className="curve-slider-date-chip">
+                {maxDTE - selectedDay}d to expiry
+              </span>
+            )}
             {isDangerZone && (
               <span className="curve-danger-inline">
                 ⚠ {isUnlimitedRisk
@@ -278,7 +315,7 @@ export function PositionPnLPanel({
             className="curve-chart"
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             role="img"
-            aria-label={`${includePremium ? 'Profit and loss' : 'Gross payoff'} curve at expiration${ticker ? ` for ${ticker}` : ''}`}
+            aria-label={`${includePremium ? 'Profit and loss' : 'Gross payoff'} curve ${selectedDay >= maxDTE ? 'at expiration' : `on ${heatmap?.dayLabels?.[selectedDay] ?? ''}`}${ticker ? ` for ${ticker}` : ''}`}
           >
             <defs>
               <clipPath id={`cpos-${svgId}`}>
@@ -401,9 +438,26 @@ export function PositionPnLPanel({
               ${maxPriceCurve.toFixed(0)}
             </text>
           </svg>
-          <p className="curve-caption">
-            X-axis: stock price at expiration. Y-axis: {includePremium ? 'net P/L after premium' : 'gross payoff before premium'} (USD).
-          </p>
+          {maxDTE > 1 && (
+            <div className="curve-slider-row">
+              <span className="curve-slider-endpoint">
+                Today
+              </span>
+              <input
+                type="range"
+                className="curve-slider"
+                min={0}
+                max={maxDTE}
+                step={1}
+                value={selectedDay}
+                onChange={e => setSelectedDay(Number(e.target.value))}
+                aria-label="Select date for P/L curve"
+              />
+              <span className="curve-slider-endpoint">
+                Expiry {heatmap?.dayLabels?.[maxDTE] ? `(${heatmap.dayLabels[maxDTE]})` : ''}
+              </span>
+            </div>
+          )}
         </div>
       ) : null}
 

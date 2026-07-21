@@ -4,7 +4,53 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Options Calculator</title>
+    <meta name="theme-color" content="#0f1117" />
+
+    <!-- Fallback SEO meta (overridden per-route by react-helmet-async) -->
+    <title>Free Options Calculator — Greeks, P&amp;L &amp; Scenarios</title>
+    <meta name="description" content="Visualize options P&amp;L, Greeks, implied volatility, and multi-leg strategies in real time. Free options calculator powered by Black-Scholes — no account needed." />
+    <link rel="canonical" href="https://options.olelohonua.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Options Calculator" />
+    <meta property="og:title" content="Free Options Calculator — Greeks, P&amp;L &amp; Scenarios" />
+    <meta property="og:description" content="Visualize options P&amp;L, Greeks, implied volatility, and multi-leg strategies in real time. Free options calculator powered by Black-Scholes — no account needed." />
+    <meta property="og:url" content="https://options.olelohonua.com/" />
+    <meta property="og:image" content="https://options.olelohonua.com/og-image.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Free Options Calculator — Greeks, P&amp;L &amp; Scenarios" />
+    <meta name="twitter:description" content="Visualize options P&amp;L, Greeks, and multi-leg strategies. Free, no account needed." />
+    <meta name="twitter:image" content="https://options.olelohonua.com/og-image.svg" />
+
+    <!-- Preconnect hints -->
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin />
+
+    <!-- WebSite structured data with SearchAction -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Options Calculator",
+      "url": "https://options.olelohonua.com",
+      "description": "Free options calculator for learning Greeks, P&L, implied volatility, and multi-leg strategies.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://options.olelohonua.com/?ticker={ticker}"
+        },
+        "query-input": "required name=ticker"
+      }
+    }
+    </script>
+
+    <!--app-head-->
   </head>
   <body>
     <div id="root"></div>

@@ -337,6 +337,7 @@ export function PositionBuilder() {
     const sign = leg.positionSide === 'sell' ? 1 : -1
     return sum + sign * leg.markPrice * 100 * leg.quantity
   }, 0)
+  const hasStockLegs = legs.some(leg => leg.optionType === 'stock')
 
   // Unique tickers across all legs (order = first appearance)
   const positionTickers = (() => {
@@ -375,8 +376,10 @@ export function PositionBuilder() {
               </div>
             )}
             {legs.length > 0 && (
-              <span className={`pb-net-badge ${netPremium >= 0 ? 'credit' : 'debit'}`}>
-                Net {netPremium >= 0 ? 'Credit' : 'Debit'}: ${Math.abs(netPremium).toFixed(2)}
+              <span className={`pb-net-badge ${netPremium >= 0 ? 'credit' : 'debit'}`}
+                title={hasStockLegs ? 'Options legs only — stock cost basis excluded' : undefined}
+              >
+                {hasStockLegs ? 'Options Net' : `Net ${netPremium >= 0 ? 'Credit' : 'Debit'}`}: ${Math.abs(netPremium).toFixed(2)}
               </span>
             )}
           </div>

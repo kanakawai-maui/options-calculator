@@ -11,7 +11,6 @@ import { Insights, ChainInsights } from './components/Insights'
 import { AggregateView } from './components/AggregateView'
 import { GreeksPanel } from './components/GreeksPanel'
 import { TickerScreener } from './components/TickerScreener'
-import { Link } from 'react-router-dom'
 import { PanelEmptyState } from './components/EmptyState'
 import './components/EmptyState.css'
 
@@ -273,7 +272,6 @@ function App() {
     }
     return seen
   }, [activelegs])
-  const hasMixedTickers = positionTickers.length > 1
   const canAggregate = positionTickers.length === 2
   const [aggregateView, setAggregateView] = useState(false)
 
@@ -413,7 +411,7 @@ function App() {
             <button
               type="button"
               className={`view-toggle-btn${aggregateView ? ' view-toggle-btn--active' : ''}`}
-              onClick={() => { if (user) { setAggregateView(true) } else { setShowAuthPrompt(true) } }}
+              onClick={() => { setAggregateView(true) }}
             >
               Aggregate
             </button>
@@ -548,6 +546,17 @@ function App() {
                   type="number" min="5" max="200" step="1"
                   value={localMoveRange}
                   onChange={(event) => setLocalMoveRange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      const parsed = Number(event.target.value)
+                      if (Number.isFinite(parsed) && parsed >= 5) {
+                        setMoveRangePercent(event.target.value)
+                      } else {
+                        setLocalMoveRange(String(moveRangePercent))
+                      }
+                      event.target.blur()
+                    }
+                  }}
                   onBlur={(event) => {
                     const parsed = Number(event.target.value)
                     if (Number.isFinite(parsed) && parsed >= 5) {
@@ -576,6 +585,10 @@ function App() {
               <div className="meta-item">
                 <span className="meta-label">Contracts</span>
                 <span className="meta-value">{quantity}</span>
+              </div>
+              <div className="meta-item">
+                <span className="meta-label">Rate</span>
+                <span className="meta-value" title="Risk-free rate used in Black-Scholes pricing">5.00%</span>
               </div>
             </div>
 
@@ -640,10 +653,10 @@ function App() {
               </svg>
             </button>
           )}
-          <Link to="/home" className="app-brand" title="Go to home page">
+          <a href="/home" className="app-brand" title="Go to home page">
             <span className="hero-mark">OPS</span>
             <h1>Options Calculator</h1>
-          </Link>
+          </a>
         </div>
         <div className="hero-status">
           <span
@@ -662,34 +675,7 @@ function App() {
           <span aria-hidden="true" style={{ color: 'var(--text-dim)' }}>·</span>
           <span>{loading ? 'Updating…' : 'Live'}</span>
         </div>
-        <div className="auth-area">
-          {authLoading ? null : user ? (
-            <div className="auth-user">
-              {user.photoURL && (
-                <img
-                  className="auth-avatar"
-                  src={user.photoURL}
-                  alt={user.displayName ?? 'User avatar'}
-                  referrerPolicy="no-referrer"
-                />
-              )}
-              <span className="auth-name">{user.displayName ?? user.email}</span>
-              <button type="button" className="auth-btn auth-btn--out" onClick={signOut}>
-                Sign out
-              </button>
-            </div>
-          ) : (
-            <button type="button" className="auth-btn auth-btn--in" onClick={signIn}>
-              <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
-                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
-                <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/>
-                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z"/>
-              </svg>
-              Sign in with Google
-            </button>
-          )}
-        </div>
+        {/* Sign in with Google disabled */}
       </header>
 
       <div className="app-body">
@@ -840,9 +826,9 @@ function App() {
             })}
 
           <footer className="app-footer">
-            <Link to="/legal">Legal</Link>
+            <a href="/about">About</a>
             <span aria-hidden="true" style={{ color: 'var(--text-dim)' }}>·</span>
-            <Link to="/about">About</Link>
+            <a href="/legal">Legal</a>
           </footer>
           </div>
         </main>
@@ -856,7 +842,7 @@ function App() {
         onSignIn={signIn}
       />
 
-      {showAuthPrompt && (
+      {false && (
         <div className="auth-gate-overlay" role="dialog" aria-modal="true" aria-label="Premium feature">
           <div className="auth-gate-backdrop" onClick={() => setShowAuthPrompt(false)} />
           <div className="auth-gate-dialog">

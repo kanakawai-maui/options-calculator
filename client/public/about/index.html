@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f1117" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <title>About — Options Calculator | How It Works</title>
+  <meta name="description" content="Learn how the free options calculator works: real market data, Black-Scholes Greeks, P&amp;L heatmaps, and multi-leg strategy builder. No account or subscription required." />
+  <link rel="canonical" href="https://options.olelohonua.com/about" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Options Calculator" />
+  <meta property="og:title" content="About — Options Calculator | How It Works" />
+  <meta property="og:description" content="Real market data, Black-Scholes Greeks, P&amp;L heatmaps. Free options calculator — no subscription required." />
+  <meta property="og:url" content="https://options.olelohonua.com/about" />
+  <meta property="og:image" content="https://options.olelohonua.com/og-image.svg" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="About — Options Calculator | How It Works" />
+  <meta name="twitter:description" content="Real market data, Black-Scholes Greeks, P&amp;L heatmaps. Free options calculator." />
+  <meta name="twitter:image" content="https://options.olelohonua.com/og-image.svg" />
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "About — Options Calculator",
+    "url": "https://options.olelohonua.com/about",
+    "description": "How the free options calculator works: real market data, Black-Scholes Greeks, P&L heatmaps, and multi-leg strategy builder.",
+    "isPartOf": { "@type": "WebSite", "url": "https://options.olelohonua.com" }
+  }
+  </script>
+
+  <link rel="stylesheet" href="/static.css" />
+</head>
+<body>
+<div class="about-wrap">
+
+  <nav class="home-nav">
+    <a href="/home" class="home-nav-brand">
+      <span class="hero-mark">OPS</span>
+      <span class="home-nav-name">Options Calculator</span>
+    </a>
+    <div class="home-nav-links">
+      <a href="/home" class="home-nav-link">Home</a>
+      <a href="/" class="home-nav-cta">Launch App →</a>
+    </div>
+  </nav>
+
+  <article class="about-article">
+    <header class="about-header">
+      <span class="about-tag">About</span>
+      <h1>Options Calculator</h1>
+      <p class="about-lead">
+        A free calculator for understanding how options are priced and how
+        different strategies play out. Built for students, self-directed learners,
+        and anyone tired of paying $50/month just to see a diagram.
+      </p>
+    </header>
+
+    <section class="about-section">
+      <h2>What it does</h2>
+      <p>
+        You pick a ticker, load the live option chain, and start building. You can
+        look at a single contract or combine multiple legs into a spread, straddle,
+        condor (or whatever you're studying). The tool shows you:
+      </p>
+      <ul>
+        <li>The full P&amp;L curve at expiration across a range of prices</li>
+        <li>How Delta, Gamma, Theta, Vega, and Rho behave across the chain</li>
+        <li>What the market's implied volatility is for any strike and expiry</li>
+        <li>How combining legs changes your breakevens and max loss/gain</li>
+        <li>How a position responds when you change spot price, vol, or time</li>
+      </ul>
+      <p>
+        The point is to make the mechanics visible. Options math is not that
+        complicated once you can see it moving. It just looks complicated when
+        it's hidden behind jargon!
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Where the data comes from</h2>
+      <p>
+        Option chains are fetched from public market data sources when you load
+        a ticker. Prices update automatically. The Greeks and P&amp;L values are
+        calculated in your browser using the Black-Scholes model (standard stuff,
+        the same math covered in any options textbook).
+      </p>
+      <div class="about-callout about-callout--warn">
+        <strong>Heads up on accuracy.</strong> The numbers here are close but not
+        guaranteed to match your broker or preferred trading platform. Bid/ask spreads, quote
+        latency, and how different platforms mark mid-prices can all cause small
+        differences. Use this to learn and explore, not to copy exact entry prices.
+      </div>
+      <p>
+        Everything runs in your browser. The backend is just a small proxy that
+        fetches publicly available data. No account is needed and nothing about your session
+        is stored on the server.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Why it's free</h2>
+      <p>
+        This started as a side project because most options tools are either
+        locked behind expensive subscriptions or buried inside broker platforms
+        that want you trading, not learning. Basic payoff diagrams and Greeks
+        charts shouldn't cost money.
+      </p>
+      <p>
+        There's no premium plan, no trial period, no email required. It's just
+        a useful tool.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>This is not financial advice</h2>
+      <p>
+        Nothing on this site is a recommendation to buy, sell, or hold anything.
+        Options involve real risk! You can lose the entire amount you put in, and
+        some strategies carry theoretically unlimited downside. The scenarios and
+        examples here are for learning purposes only.
+      </p>
+      <p>
+        If you're making real trading decisions, talk to a financial professional
+        and do your own research. Past results in any example don't predict
+        future performance. Options are complex and can be risky, so make sure you understand the risks before trading.
+      </p>
+      <p>
+        <a href="/legal" class="about-link">Full legal disclaimer →</a>
+      </p>
+    </section>
+  </article>
+
+  <footer class="home-footer">
+    <span>© 2026 Options Calculator</span>
+    <span class="home-footer-sep" aria-hidden="true">·</span>
+    <a href="/home" class="home-footer-link">Home</a>
+    <span class="home-footer-sep" aria-hidden="true">·</span>
+    <a href="/legal" class="home-footer-link">Legal</a>
+  </footer>
+
+</div>
+</body>
+</html>

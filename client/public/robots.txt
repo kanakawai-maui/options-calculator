@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://options.olelohonua.com/sitemap.xml
