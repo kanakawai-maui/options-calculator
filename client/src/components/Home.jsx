@@ -23,8 +23,8 @@ export function Home() {
         </h1>
         <p className="home-hero-sub">
           A hands-on calculator for understanding how options are priced, how strategies
-          behave under different market conditions, and what the Greeks actually mean —
-          built for students and self-directed learners.
+          behave under different market conditions, and what the Greeks actually mean.
+          Built for students and self-directed learners.
         </p>
         <div className="home-hero-actions">
           <Link to="/" className="home-btn home-btn--primary">Open the Calculator</Link>
@@ -37,7 +37,7 @@ export function Home() {
         <div className="home-concepts-grid">
           <div className="home-concept">
             <span className="home-concept-label">Greeks</span>
-            <p>See how Delta, Gamma, Theta, Vega, and Rho shift across the full price range — not just at one strike.</p>
+            <p>See how Delta, Gamma, Theta, Vega, and Rho shift across the full price range (not just at one strike).</p>
           </div>
           <div className="home-concept">
             <span className="home-concept-label">P&amp;L at Expiration</span>
@@ -80,8 +80,8 @@ export function Home() {
               <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           </div>
-          <h3>Completely free</h3>
-          <p>No subscription, no account wall, no ads. Real-time market data is fetched directly — just open the tool and start learning.</p>
+          <h3>Free Tier</h3>
+          <p>No subscription, no account wall, no ads. Recent market data is fetched so you can just open the tool and start learning.</p>
         </div>
         <div className="home-feature">
           <div className="home-feature-icon">
@@ -90,7 +90,7 @@ export function Home() {
             </svg>
           </div>
           <h3>Real market data</h3>
-          <p>Option chains are pulled live for any US equity or ETF. You learn with the same prices you'd see on a brokerage platform.</p>
+          <p>Option chains are pulled live for any US equity or ETF. You learn with similar prices you'd see on a brokerage platform.</p>
         </div>
         <div className="home-feature">
           <div className="home-feature-icon">
@@ -100,7 +100,7 @@ export function Home() {
             </svg>
           </div>
           <h3>Visual P&amp;L heatmaps</h3>
-          <p>Heatmaps show profit and loss across every price level — so you understand the full risk profile, not just the breakeven.</p>
+          <p>Heatmaps show profit and loss across every price level, so you understand the full risk profile (not just the breakeven).</p>
         </div>
         <div className="home-feature">
           <div className="home-feature-icon">
@@ -110,7 +110,7 @@ export function Home() {
             </svg>
           </div>
           <h3>Ticker screener</h3>
-          <p>Filter by IV rank, skew, and liquidity across hundreds of tickers — useful for understanding which markets are "expensive" or "cheap" in vol terms.</p>
+          <p>Filter by IV rank, skew, and liquidity across hundreds of tickers (useful for understanding which markets are "expensive" or "cheap" in vol terms).</p>
         </div>
         <div className="home-feature">
           <div className="home-feature-icon">
@@ -120,7 +120,7 @@ export function Home() {
             </svg>
           </div>
           <h3>Save scenarios</h3>
-          <p>Save multiple setups and compare them side-by-side — great for studying how the same strategy behaves across different underlyings or expiries.</p>
+          <p>Save multiple setups and compare them side-by-side (great for studying how the same strategy behaves across different underlyings or expiries).</p>
         </div>
       </section>
 

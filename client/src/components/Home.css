@@ -35,6 +35,22 @@
   color: var(--text);
 }
 
+.home-concepts { 
+  display: grid;
+}
+
+.home-concept {
+  text-align: center;
+}
+
+.home-concept-label {
+  font-weight: bold;
+}
+
+.home-concepts-heading {
+  text-align: center;
+}
+
 .home-nav-links {
   display: flex;
   align-items: center;

@@ -21,8 +21,8 @@ export function About() {
           <h1>Options Calculator</h1>
           <p className="about-lead">
             A free calculator for understanding how options are priced and how
-            different strategies play out — built for students, self-directed learners,
-            and anyone tired of paying $50/month just to see a payoff diagram.
+            different strategies play out.  Built for students, self-directed learners,
+            and anyone tired of paying $50/month just to see a diagram.
           </p>
         </header>
 
@@ -31,7 +31,7 @@ export function About() {
           <p>
             You pick a ticker, load the live option chain, and start building. You can
             look at a single contract or combine multiple legs into a spread, straddle,
-            condor — whatever you're studying. The tool shows you:
+            condor (or whatever you're studying). The tool shows you:
           </p>
           <ul>
             <li>The full P&amp;L curve at expiration across a range of prices</li>
@@ -42,8 +42,8 @@ export function About() {
           </ul>
           <p>
             The point is to make the mechanics visible. Options math is not that
-            complicated once you can see it moving — it just looks complicated when
-            it's hidden behind jargon.
+            complicated once you can see it moving.  It just looks complicated when
+            it's hidden behind jargon!
           </p>
         </section>
 
@@ -52,19 +52,20 @@ export function About() {
           <p>
             Option chains are fetched from public market data sources when you load
             a ticker. Prices update automatically. The Greeks and P&amp;L values are
-            calculated in your browser using the Black-Scholes model — standard stuff,
-            the same math covered in any options textbook.
+            calculated in your browser using the Black-Scholes model (standard stuff,
+            the same math covered in any options textbook).
           </p>
           <div className="about-callout about-callout--warn">
             <strong>Heads up on accuracy.</strong> The numbers here are close but not
-            guaranteed to match your broker tick-for-tick. Bid/ask spreads, quote
+            guaranteed to match your broker or preferred trading platform. Bid/ask spreads, quote
             latency, and how different platforms mark mid-prices can all cause small
-            differences. Use this to learn and explore, not to copy exact entry prices.
+            differences. Use this to learn and explore, not to copy exact entry prices.  Maybe this will 
+            be a future feature!
           </div>
           <p>
             Everything runs in your browser. The backend is just a small proxy that
-            fetches public data — no account is needed and nothing about your session
-            is stored.
+            fetches publically available data.  No account is needed and nothing about your session
+            is stored on the server.
           </p>
         </section>
 
@@ -78,7 +79,7 @@ export function About() {
           </p>
           <p>
             There's no premium plan, no trial period, no email required. It's just
-            a tool — open it, use it, close it.
+            a useful tool.
           </p>
         </section>
 
@@ -86,14 +87,14 @@ export function About() {
           <h2>This is not financial advice</h2>
           <p>
             Nothing on this site is a recommendation to buy, sell, or hold anything.
-            Options involve real risk — you can lose the entire amount you put in, and
+            Options involve real risk! You can lose the entire amount you put in, and
             some strategies carry theoretically unlimited downside. The scenarios and
             examples here are for learning purposes only.
           </p>
           <p>
             If you're making real trading decisions, talk to a financial professional
             and do your own research. Past results in any example don't predict
-            what happens next.
+            future performance.  Options are complex and can be risky, so make sure you understand the risks before trading.
           </p>
           <p>
             <Link to="/legal" className="about-link">Full legal disclaimer →</Link>
