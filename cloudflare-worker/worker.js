@@ -65,6 +65,15 @@ async function ensureSchema(db) {
     await db.prepare(`INSERT OR REPLACE INTO meta (key, value) VALUES ('chains_v2', '1')`).run()
   }
 
+  const migratedV3 = await db.prepare(`SELECT value FROM meta WHERE key = 'chains_v3'`).first()
+  if (!migratedV3) {
+    await db.prepare(`ALTER TABLE chains ADD COLUMN expiration INTEGER`).run().catch(() => {})
+    await db.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_chains_ticker_exp ON chains (ticker, expiration, fetched_at DESC)`
+    ).run()
+    await db.prepare(`INSERT OR REPLACE INTO meta (key, value) VALUES ('chains_v3', '1')`).run()
+  }
+
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS ticker_accesses (
        ticker        TEXT PRIMARY KEY,
@@ -115,9 +124,25 @@ export default {
       await ensureSchema(env.DB)
 
       if (request.method === 'GET') {
-        const row = await env.DB.prepare(
-          `SELECT data, fetched_at FROM chains WHERE ticker = ? ORDER BY fetched_at DESC LIMIT 1`
-        ).bind(ticker).first()
+        const expParam = url.searchParams.get('expiration')
+        let row
+        if (expParam) {
+          const expNum = Number(expParam)
+          // Try exact expiration match first
+          row = await env.DB.prepare(
+            `SELECT data, fetched_at FROM chains WHERE ticker = ? AND expiration = ? ORDER BY fetched_at DESC LIMIT 1`
+          ).bind(ticker, expNum).first()
+          // Fall back to closest stored expiration
+          if (!row) {
+            row = await env.DB.prepare(
+              `SELECT data, fetched_at FROM chains WHERE ticker = ? AND expiration IS NOT NULL ORDER BY ABS(CAST(expiration AS REAL) - ?) ASC, fetched_at DESC LIMIT 1`
+            ).bind(ticker, expNum).first()
+          }
+        } else {
+          row = await env.DB.prepare(
+            `SELECT data, fetched_at FROM chains WHERE ticker = ? ORDER BY fetched_at DESC LIMIT 1`
+          ).bind(ticker).first()
+        }
         if (!row) return new Response('Not found', { status: 404 })
         // Inject cachedAt into the JSON payload if not already present
         let payload
@@ -147,9 +172,10 @@ export default {
         try { parsed = JSON.parse(body) } catch { parsed = {} }
         parsed.cachedAt = now
         body = JSON.stringify(parsed)
+        const expiration = parsed.selectedExpiration ? Number(parsed.selectedExpiration) : null
         await env.DB.prepare(
-          `INSERT INTO chains (ticker, data, fetched_at) VALUES (?, ?, ?)`
-        ).bind(ticker, body, now).run()
+          `INSERT INTO chains (ticker, data, fetched_at, expiration) VALUES (?, ?, ?, ?)`
+        ).bind(ticker, body, now, expiration).run()
         return new Response(JSON.stringify({ ok: true, ticker }), {
           headers: { 'Content-Type': 'application/json', ...CORS },
         })

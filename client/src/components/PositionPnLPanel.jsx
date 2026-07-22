@@ -52,12 +52,16 @@ export function PositionPnLPanel({
   const [includePremium, setIncludePremium] = useState(true)
 
   const maxDTE = heatmap?.maxDTE ?? 0
-  const [selectedDay, setSelectedDay] = useState(maxDTE)
+  // selectedDay is a column *index* into dayLevels (not a raw day count), so the
+  // slider range stays reasonable even for 500+ day LEAPS positions.
+  const numDayLevels = heatmap?.dayLevels?.length ?? 1
+  const maxColIdx = Math.max(0, numDayLevels - 1)
+  const [selectedDay, setSelectedDay] = useState(0)
 
-  // Reset slider to expiration whenever the position changes
+  // Reset slider to expiration (last column) whenever the heatmap changes
   useEffect(() => {
-    setSelectedDay(maxDTE)
-  }, [maxDTE])
+    setSelectedDay(maxColIdx)
+  }, [maxColIdx])
 
   // Net premium offset: the constant shift added to P/L values when premium is excluded.
   // Long leg: adds back the cost paid → shows gross payoff
@@ -72,7 +76,7 @@ export function PositionPnLPanel({
   // Raw curve for the selected day — expiry column when at max, otherwise pull
   // the matching day-column from the heatmap rows (all cells are pre-computed)
   const rawActiveCurve = useMemo(() => {
-    if (selectedDay >= maxDTE || !heatmap?.rows?.length) {
+    if (selectedDay >= maxColIdx || !heatmap?.rows?.length) {
       return heatmap?.expiryCurve ?? []
     }
     return (heatmap.rows ?? [])
@@ -292,15 +296,15 @@ export function PositionPnLPanel({
         <div className="curve-panel">
           <div className="curve-title-row">
             <span className="curve-title">
-              {selectedDay >= maxDTE
+              {selectedDay >= maxColIdx
                 ? (includePremium ? 'P/L at Expiration' : 'Gross Payoff at Expiration')
                 : (includePremium
                     ? `P/L on ${heatmap?.dayLabels?.[selectedDay] ?? ''}`
                     : `Gross Payoff on ${heatmap?.dayLabels?.[selectedDay] ?? ''}`)}
             </span>
-            {selectedDay < maxDTE && maxDTE > 1 && (
+            {selectedDay < maxColIdx && maxColIdx > 0 && (
               <span className="curve-slider-date-chip">
-                {maxDTE - selectedDay}d to expiry
+                {maxDTE - (heatmap?.dayLevels?.[selectedDay] ?? selectedDay)}d to expiry
               </span>
             )}
             {isDangerZone && (
@@ -438,7 +442,7 @@ export function PositionPnLPanel({
               ${maxPriceCurve.toFixed(0)}
             </text>
           </svg>
-          {maxDTE > 1 && (
+          {maxColIdx > 0 && (
             <div className="curve-slider-row">
               <span className="curve-slider-endpoint">
                 Today
@@ -447,14 +451,14 @@ export function PositionPnLPanel({
                 type="range"
                 className="curve-slider"
                 min={0}
-                max={maxDTE}
+                max={maxColIdx}
                 step={1}
                 value={selectedDay}
                 onChange={e => setSelectedDay(Number(e.target.value))}
                 aria-label="Select date for P/L curve"
               />
               <span className="curve-slider-endpoint">
-                Expiry {heatmap?.dayLabels?.[maxDTE] ? `(${heatmap.dayLabels[maxDTE]})` : ''}
+                Expiry {heatmap?.dayLabels?.[maxColIdx] ? `(${heatmap.dayLabels[maxColIdx]})` : ''}
               </span>
             </div>
           )}

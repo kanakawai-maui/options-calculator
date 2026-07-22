@@ -136,7 +136,7 @@ const FINDER_GROUPS = [
     label: 'Risk',
     options: [
       { id: 'defined', label: 'Defined' },
-      { id: 'undefined', label: 'Undefined' },
+      { id: 'undefined', label: 'Not Defined' },
     ],
   },
   {

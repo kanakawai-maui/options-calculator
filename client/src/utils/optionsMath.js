@@ -229,12 +229,31 @@ export function buildHeatmap({ spotPrice, legs, moveRangePercent }) {
     return minPrice + (maxPrice - minPrice) * ratio
   })
 
-  const dayLevels = Array.from({ length: daysToExpiration + 1 }, (_, day) => day)
+  // Step size keeps the column count manageable for long-dated positions:
+  //   ≤60 DTE  → every day     (~60 cols)
+  //   ≤180 DTE → every 2 days  (~90 cols)
+  //   ≤365 DTE → weekly        (~52 cols)
+  //   ≤500 DTE → biweekly      (~36 cols)
+  //   >500 DTE → monthly       (~24 cols for 2yr LEAPS)
+  const dayStep =
+    daysToExpiration <= 60  ? 1  :
+    daysToExpiration <= 180 ? 2  :
+    daysToExpiration <= 365 ? 7  :
+    daysToExpiration <= 500 ? 14 : 30
+
+  const rawDayLevels = []
+  for (let d = 0; d <= daysToExpiration; d += dayStep) rawDayLevels.push(d)
+  if (rawDayLevels[rawDayLevels.length - 1] !== daysToExpiration) rawDayLevels.push(daysToExpiration)
+  const dayLevels = rawDayLevels
+
   const baseDate = new Date()
   baseDate.setHours(0, 0, 0, 0)
   const dayLabels = dayLevels.map((day) => {
     const date = new Date(baseDate.getTime() + day * 86400000)
-    return date.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
+    // For long-dated positions show month+year, for short-dated just month+day
+    return daysToExpiration > 365
+      ? date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
+      : date.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
   })
 
   const boundaries = priceLevels.map((price, index) => {

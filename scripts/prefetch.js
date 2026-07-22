@@ -71,25 +71,21 @@ function normalizeContract(contract) {
   }
 }
 
-async function fetchChain(ticker) {
+// Fetch quote + expiration dates for a ticker (single call)
+async function fetchMeta(ticker) {
   const [quote, optionsMeta] = await Promise.all([
     yf.quote(ticker),
     yf.options(ticker),
   ])
-
   const expirationDates = (optionsMeta.expirationDates || [])
     .map(toUnixSeconds)
     .filter((v) => Number.isFinite(v))
-
   if (!expirationDates.length) throw new Error('no expiration dates')
+  return { quote, expirationDates }
+}
 
-  // Fetch chain for the nearest expiration (~30 days out)
-  const nowSec = Date.now() / 1000
-  const target30d = nowSec + 30 * 86400
-  const selectedExpiration = expirationDates.reduce((best, e) =>
-    Math.abs(e - target30d) < Math.abs(best - target30d) ? e : best,
-  )
-
+// Fetch chain data for one specific expiration and return the cache payload
+async function fetchChainForExpiration(ticker, selectedExpiration, expirationDates, quote) {
   const chainData = await yf.options(ticker, {
     date: new Date(selectedExpiration * 1000),
   })
@@ -97,13 +93,13 @@ async function fetchChain(ticker) {
 
   return {
     ticker,
+    selectedExpiration,
+    expirationDates,
     quote: {
       symbol: quote.symbol,
       regularMarketPrice: Number(quote.regularMarketPrice) || null,
       regularMarketChangePercent: Number(quote.regularMarketChangePercent) || null,
     },
-    expirationDates,
-    selectedExpiration,
     optionChain: {
       calls: (chain.calls || []).map(normalizeContract),
       puts: (chain.puts || []).map(normalizeContract),
@@ -184,20 +180,32 @@ async function main() {
 
   for (const ticker of tickers) {
     try {
-      process.stdout.write(`  ${ticker.padEnd(6)} fetch...`)
-      const data = await fetchChain(ticker)
-      process.stdout.write(` push...`)
-      await pushToCache(ticker, data)
-      const calls = data.optionChain.calls.length
-      const puts = data.optionChain.puts.length
-      console.log(` ✓  (${calls} calls, ${puts} puts)`)
+      process.stdout.write(`  ${ticker.padEnd(6)} fetch meta...`)
+      const { quote, expirationDates } = await fetchMeta(ticker)
+      process.stdout.write(` ${expirationDates.length} expirations...`)
+
+      let expOk = 0
+      let expFail = 0
+      for (const expiration of expirationDates) {
+        try {
+          const data = await fetchChainForExpiration(ticker, expiration, expirationDates, quote)
+          await pushToCache(ticker, data)
+          expOk++
+        } catch (expErr) {
+          expFail++
+        }
+        // Small delay between expirations to avoid rate limits
+        await new Promise((r) => setTimeout(r, 300))
+      }
+
+      console.log(` ✓  (${expOk}/${expirationDates.length} expirations${expFail ? `, ${expFail} failed` : ''})`)
       ok++
     } catch (err) {
       console.log(` ✗  ${err.message}`)
       fail++
     }
 
-    // Small delay between tickers to avoid rate limits
+    // Delay between tickers
     await new Promise((r) => setTimeout(r, 500))
   }
 

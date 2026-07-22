@@ -172,11 +172,15 @@ export const useOptionsStore = create(
             )
           : null
 
-      // Prefer the expiration the server actually fetched chain data for —
-      // this prevents a mismatch between the displayed date and the chain data.
-      // Fall back to client-computed ~30d default if the server didn't echo one.
+      // If the user explicitly selected an expiration and it's a valid date,
+      // keep it — don't let the server's cached default overwrite their choice.
+      const userPickIsValid = forcedExpiration != null && dates.includes(String(forcedExpiration))
       const nextExpiration = String(
-        payload.selectedExpiration ?? forcedExpiration ?? reasonableExpiration ?? dates[0] ?? '',
+        (userPickIsValid ? forcedExpiration : null)
+        ?? payload.selectedExpiration
+        ?? reasonableExpiration
+        ?? dates[0]
+        ?? '',
       )
 
       set({
@@ -213,7 +217,7 @@ export const useOptionsStore = create(
   // ─── Position / Legs ───────────────────────────────────────────────────────
 
   addCurrentLeg: () => {
-    const { selectedContract, optionType, positionSide, quantity, ticker, spotPrice } = get()
+    const { selectedContract, optionType, positionSide, quantity, ticker, spotPrice, expirationDate } = get()
     if (!selectedContract?.strike || !selectedContract?.markPrice) return false
     const leg = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -225,7 +229,9 @@ export const useOptionsStore = create(
       strike: selectedContract.strike,
       markPrice: selectedContract.markPrice,
       impliedVolatility: selectedContract.impliedVolatility || 0.25,
-      expiration: selectedContract.expiration,
+      // Use the store's expirationDate (user's selection) — selectedContract.expiration
+      // reflects what was cached in D1 and may differ from the user's chosen expiry.
+      expiration: expirationDate ? Number(expirationDate) : selectedContract.expiration,
     }
     set((state) => ({ legs: [...state.legs, leg] }))
     return true

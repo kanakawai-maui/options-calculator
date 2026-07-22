@@ -409,10 +409,11 @@ app.get('/api/search', async (request, response) => {
 // Active when CACHE_WORKER_URL is set in env.
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function fetchFromD1Cache(ticker) {
+async function fetchFromD1Cache(ticker, expiration) {
   const baseUrl = process.env.CACHE_WORKER_URL
   if (!baseUrl) throw new Error('CACHE_WORKER_URL not configured')
-  const url = `${baseUrl.replace(/\/$/, '')}/cache/${encodeURIComponent(ticker)}`
+  const qs = expiration ? `?expiration=${encodeURIComponent(String(expiration))}` : ''
+  const url = `${baseUrl.replace(/\/$/, '')}/cache/${encodeURIComponent(ticker)}${qs}`
   const res = await fetch(url)
   if (res.status === 404) throw new Error(`No cached data for ${ticker}`)
   if (!res.ok) throw new Error(`D1 cache ${res.status}: ${res.statusText}`)
@@ -696,7 +697,7 @@ app.get('/api/option-chain', async (request, response) => {
   // D1 cache — last resort before synthetic data
   if (process.env.CACHE_WORKER_URL) {
     try {
-      const cached = await fetchFromD1Cache(ticker)
+      const cached = await fetchFromD1Cache(ticker, expiration)
       response.json(cached)
       return
     } catch (cacheErr) {
