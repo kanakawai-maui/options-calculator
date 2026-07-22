@@ -759,8 +759,8 @@ export function PositionBuilder() {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={9} className="legs-total-label">
-                    Net {netPremium >= 0 ? 'Credit Received' : 'Debit Paid'} (position cost × 100 shares/contract)
+                  <td colSpan={5} className="legs-total-label">
+                    Net {netPremium >= 0 ? 'Credit' : 'Debit'} (x 100 shares/contract)
                   </td>
                   <td className={`legs-total-value ${netPremium >= 0 ? 'credit' : 'debit'}`}>
                     ${Math.abs(netPremium).toFixed(2)}
