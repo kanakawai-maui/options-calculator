@@ -1,21 +1,27 @@
 /**
  * scripts/prefetch.js
  *
- * Run this locally to populate the D1 option-chain cache via the CF Worker.
- * Your home IP is not blocked by Yahoo Finance, so fetches succeed here.
+ * Populates the D1 option-chain cache by fetching from Yahoo Finance locally.
+ * Home/residential IPs are not rate-limited by Yahoo like cloud/datacenter IPs.
  *
  * Usage:
- *   node scripts/prefetch.js              # fetch all tickers
- *   node scripts/prefetch.js AAPL MSFT    # fetch specific tickers only
+ *   node scripts/prefetch.js                   # all tickers, default concurrency
+ *   node scripts/prefetch.js AAPL MSFT         # specific tickers only
+ *   node scripts/prefetch.js --concurrency 2   # reduce parallel ticker count (default: 4)
  *
- * Requires a scripts/.env file (copy from scripts/.env.example):
- *   CACHE_WORKER_URL=https://yahoo-finance-proxy.rob-b31.workers.dev
- *   PROXY_SECRET=your_secret_here         # leave blank if not set
+ * Requires scripts/.env (copy from scripts/.env.example):
+ *   CACHE_WORKER_URL=https://your-worker.workers.dev
+ *   PROXY_SECRET=your_secret_here              # leave blank if not set
+ *
+ * Performance:
+ *   4 tickers × 3 expirations concurrently ≈ 30–40s for 37 tickers with all expirations.
+ *   Exponential backoff on 429 / network errors. Inter-batch jitter prevents burst spikes.
  */
 
-// Resolve dotenv and yahoo-finance2 from the server's node_modules
 const path = require('path')
+const fs   = require('fs')
 const serverRoot = path.join(__dirname, '..', 'server')
+
 require(path.join(serverRoot, 'node_modules', 'dotenv')).config({
   path: path.join(__dirname, '.env'),
 })
@@ -33,7 +39,7 @@ if (!CACHE_WORKER_URL) {
   process.exit(1)
 }
 
-// Tickers to prefetch — mirrors SCREENER_DEFAULT_UNIVERSE in server/index.js
+// Mirrors SCREENER_DEFAULT_UNIVERSE in server/index.js
 const DEFAULT_TICKERS = [
   'AAPL', 'MSFT', 'NVDA', 'GOOG', 'AMZN', 'META', 'TSLA', 'AVGO', 'NFLX', 'AMD',
   'PLTR', 'SOFI', 'COIN', 'MARA', 'RIOT', 'GME', 'SMCI', 'ARM', 'MU', 'INTC',
@@ -42,6 +48,12 @@ const DEFAULT_TICKERS = [
   'JPM', 'BAC', 'F',
   'XOM', 'CVX', 'GLD', 'SLV', 'TLT', 'HYG',
 ]
+
+// Number of expiration dates fetched concurrently per ticker.
+// Keep at 3 to stay well within Yahoo's undocumented rate limits.
+const EXP_CONCURRENCY = 3
+
+const LAST_RUN_FILE = path.join(__dirname, '.last-run')
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,88 +67,79 @@ function toUnixSeconds(value) {
   return Math.round(parsed / 1000)
 }
 
+// Normalized contract — drops contractSymbol (unused client-side),
+// pre-computes a definitive mark price so clients always have a reliable value.
 function normalizeContract(contract) {
+  const bid       = Number(contract.bid)       || 0
+  const ask       = Number(contract.ask)       || 0
+  const lastPrice = Number(contract.lastPrice) || 0
+  const rawMark   = Number(contract.regularMarketPrice) || 0
+  const mark = rawMark > 0
+    ? rawMark
+    : (bid > 0 && ask > 0)
+      ? Math.round(((bid + ask) / 2) * 100) / 100
+      : lastPrice > 0 ? lastPrice : 0
   return {
-    contractSymbol: contract.contractSymbol,
-    strike: Number(contract.strike),
-    expiration: toUnixSeconds(contract.expiration),
-    bid: Number(contract.bid) || 0,
-    ask: Number(contract.ask) || 0,
-    mark: Number(contract.regularMarketPrice) || 0,
-    lastPrice: Number(contract.lastPrice) || 0,
+    strike:            Number(contract.strike),
+    expiration:        toUnixSeconds(contract.expiration),
+    bid,
+    ask,
+    mark,
+    lastPrice,
     impliedVolatility: Number(contract.impliedVolatility) || null,
-    inTheMoney: Boolean(contract.inTheMoney),
-    volume: Number(contract.volume) || 0,
-    openInterest: Number(contract.openInterest) || 0,
+    inTheMoney:        Boolean(contract.inTheMoney),
+    volume:            Number(contract.volume)       || 0,
+    openInterest:      Number(contract.openInterest) || 0,
   }
 }
 
-// Fetch quote + expiration dates for a ticker (single call)
-async function fetchMeta(ticker) {
-  const [quote, optionsMeta] = await Promise.all([
-    yf.quote(ticker),
-    yf.options(ticker),
-  ])
-  const expirationDates = (optionsMeta.expirationDates || [])
-    .map(toUnixSeconds)
-    .filter((v) => Number.isFinite(v))
-  if (!expirationDates.length) throw new Error('no expiration dates')
-  return { quote, expirationDates }
+// Retry with exponential backoff + full jitter. Handles 429s and network errors.
+async function withRetry(fn, { retries = 3, baseMs = 1000, label = '' } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (attempt === retries) throw err
+      const status = err?.status ?? err?.response?.status ?? null
+      const is429  = status === 429 || /429|rate.?limit|too.?many/i.test(err?.message || '')
+      const delay  = (baseMs * Math.pow(2, attempt)) + Math.random() * baseMs
+      process.stderr.write(
+        `  [retry ${attempt + 1}/${retries}]${label ? ' ' + label : ''}${is429 ? ' (429)' : ''} — wait ${Math.round(delay)}ms\n`
+      )
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
 }
 
-// Fetch chain data for one specific expiration and return the cache payload
-async function fetchChainForExpiration(ticker, selectedExpiration, expirationDates, quote) {
-  const chainData = await yf.options(ticker, {
-    date: new Date(selectedExpiration * 1000),
-  })
-  const chain = chainData.options?.[0] || { calls: [], puts: [] }
-
-  return {
-    ticker,
-    selectedExpiration,
-    expirationDates,
-    quote: {
-      symbol: quote.symbol,
-      regularMarketPrice: Number(quote.regularMarketPrice) || null,
-      regularMarketChangePercent: Number(quote.regularMarketChangePercent) || null,
-    },
-    optionChain: {
-      calls: (chain.calls || []).map(normalizeContract),
-      puts: (chain.puts || []).map(normalizeContract),
-    },
-    source: 'D1 cache (prefetched locally)',
-    cachedAt: Math.floor(Date.now() / 1000),
+// Run fn(item) on up to `limit` items concurrently.
+// Errors must be handled inside fn — this function never throws.
+async function pooled(items, limit, fn) {
+  let i = 0
+  async function worker() {
+    while (i < items.length) {
+      const item = items[i++]
+      await fn(item).catch(() => {})
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
 }
 
 async function pushToCache(ticker, data) {
   const url = `${CACHE_WORKER_URL}/cache/${ticker}`
   const headers = { 'Content-Type': 'application/json' }
   if (PROXY_SECRET) headers['x-proxy-secret'] = PROXY_SECRET
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  })
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(data) })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`Worker responded ${res.status}: ${text}`)
+    throw new Error(`Worker ${res.status}: ${text.slice(0, 120)}`)
   }
 }
-
-// ─── Hot-ticker prioritization ────────────────────────────────────────────────
-
-const fs = require('fs')
-const LAST_RUN_FILE = path.join(__dirname, '.last-run')
 
 function readLastRun() {
   try {
     const ts = parseInt(fs.readFileSync(LAST_RUN_FILE, 'utf8').trim(), 10)
     return Number.isFinite(ts) ? ts : null
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 function writeLastRun() {
@@ -145,79 +148,173 @@ function writeLastRun() {
 
 async function fetchHotTickers(since) {
   try {
-    const url = `${CACHE_WORKER_URL}/access/hot?since=${since}`
-    const res = await fetch(url)
+    const res = await fetch(`${CACHE_WORKER_URL}/access/hot?since=${since}`)
     if (!res.ok) return []
     const json = await res.json()
-    return (json || []).map((r) => r.ticker).filter(Boolean)
-  } catch {
-    return []
+    return (json || []).map(r => r.ticker).filter(Boolean)
+  } catch { return [] }
+}
+
+// ─── Expiration selection ─────────────────────────────────────────────────────
+
+// Returns true if a Unix-second timestamp falls on the third Friday of its UTC month
+// (i.e. standard monthly options expiration).
+function isMonthlyExpiration(ts) {
+  const d = new Date(ts * 1000)
+  if (d.getUTCDay() !== 5) return false            // must be Friday
+  const dom = d.getUTCDate()
+  return dom >= 15 && dom <= 21                    // 3rd Friday is always day 15–21
+}
+
+// From the full Yahoo expiration list, pick:
+//   1. All dates within the next ~6 weeks (weekly/near-term coverage)
+//   2. Standard monthly expirations up to ~6 months out
+//   3. The single longest-dated LEAP (> 1 year out)
+function selectExpirations(timestamps) {
+  const nowSec       = Math.floor(Date.now() / 1000)
+  const sixWeeks     = nowSec + 6  * 7  * 24 * 3600
+  const sixMonths    = nowSec + 6  * 30 * 24 * 3600
+  const oneYear      = nowSec + 365     * 24 * 3600
+
+  const selected = new Set()
+
+  for (const ts of timestamps) {
+    if (ts <= sixWeeks)                           selected.add(ts)  // near-term
+    else if (ts <= sixMonths && isMonthlyExpiration(ts)) selected.add(ts)  // monthly ≤6 mo
   }
+
+  // Longest-dated LEAP
+  const leaps = timestamps.filter(ts => ts > oneYear)
+  if (leaps.length) selected.add(leaps[leaps.length - 1])
+
+  return timestamps.filter(ts => selected.has(ts))
+}
+
+// ─── Per-ticker fetch ─────────────────────────────────────────────────────────
+
+async function processTicker(ticker) {
+  // One round trip: quote + expiration list in parallel
+  const [quote, optionsMeta] = await withRetry(
+    () => Promise.all([yf.quote(ticker), yf.options(ticker)]),
+    { retries: 3, baseMs: 1000, label: `${ticker} meta` }
+  )
+
+  const allExpirations = (optionsMeta.expirationDates || [])
+    .map(toUnixSeconds)
+    .filter(v => Number.isFinite(v))
+
+  const expirationDates = selectExpirations(allExpirations)
+
+  if (!expirationDates.length) throw new Error('no expirations')
+
+  const quoteData = {
+    symbol:                     quote.symbol,
+    regularMarketPrice:         Number(quote.regularMarketPrice)         || null,
+    regularMarketChangePercent: Number(quote.regularMarketChangePercent) || null,
+  }
+
+  let expOk = 0, expFail = 0
+
+  // Fetch all expirations with limited concurrency
+  await pooled(expirationDates, EXP_CONCURRENCY, async (expiration) => {
+    try {
+      const chainData = await withRetry(
+        () => yf.options(ticker, { date: new Date(expiration * 1000) }),
+        { retries: 3, baseMs: 800, label: `${ticker} chain:${expiration}` }
+      )
+      const chain = chainData.options?.[0] || { calls: [], puts: [] }
+      const payload = {
+        ticker,
+        selectedExpiration: expiration,
+        expirationDates,
+        quote: quoteData,
+        optionChain: {
+          calls: (chain.calls || []).map(normalizeContract).filter(c => c.strike > 0),
+          puts:  (chain.puts  || []).map(normalizeContract).filter(c => c.strike > 0),
+        },
+        source:   'D1 cache (prefetched locally)',
+        cachedAt: Math.floor(Date.now() / 1000),
+      }
+      await withRetry(
+        () => pushToCache(ticker, payload),
+        { retries: 2, baseMs: 500, label: `${ticker} push:${expiration}` }
+      )
+      expOk++
+    } catch (err) {
+      expFail++
+      process.stderr.write(`  [skip] ${ticker} exp:${expiration} — ${err.message}\n`)
+    }
+  })
+
+  return { expOk, expTotal: expirationDates.length, expFail }
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // Parse --concurrency N (must appear before or after ticker names)
+  const argv = process.argv.slice(2)
+  let TICKER_CONCURRENCY = 4
+  const concIdx = argv.indexOf('--concurrency')
+  if (concIdx !== -1 && argv[concIdx + 1]) {
+    const v = parseInt(argv[concIdx + 1], 10)
+    if (v >= 1 && v <= 10) TICKER_CONCURRENCY = v
+    argv.splice(concIdx, 2)
+  }
+
   let tickers
-  if (process.argv.slice(2).length) {
-    tickers = process.argv.slice(2).map((t) => t.toUpperCase())
+  if (argv.length) {
+    tickers = argv.map(t => t.toUpperCase())
   } else {
-    // Fetch hot tickers (recently accessed) and move them to the front
     const lastRun = readLastRun() ?? Math.floor(Date.now() / 1000) - 86400
     const hotTickers = await fetchHotTickers(lastRun)
     if (hotTickers.length) {
-      console.log(`Prioritizing ${hotTickers.length} hot ticker(s): ${hotTickers.join(', ')}`)
+      console.log(`Prioritizing ${hotTickers.length} hot: ${hotTickers.join(', ')}`)
     }
-    // Deduplicate: hot first, then the rest of DEFAULT_TICKERS not already in hot
     const hotSet = new Set(hotTickers)
-    tickers = [...hotTickers, ...DEFAULT_TICKERS.filter((t) => !hotSet.has(t))]
+    tickers = [...hotTickers, ...DEFAULT_TICKERS.filter(t => !hotSet.has(t))]
   }
 
-  console.log(`Prefetching ${tickers.length} ticker(s) → ${CACHE_WORKER_URL}\n`)
+  const startMs = Date.now()
+  console.log(
+    `Prefetching ${tickers.length} ticker(s) [ticker-p=${TICKER_CONCURRENCY}, exp-p=${EXP_CONCURRENCY}] → ${CACHE_WORKER_URL}\n`
+  )
 
-  let ok = 0
-  let fail = 0
+  let ok = 0, fail = 0
 
-  for (const ticker of tickers) {
-    try {
-      process.stdout.write(`  ${ticker.padEnd(6)} fetch meta...`)
-      const { quote, expirationDates } = await fetchMeta(ticker)
-      process.stdout.write(` ${expirationDates.length} expirations...`)
+  // Process tickers in batches of TICKER_CONCURRENCY; print results after each batch
+  for (let i = 0; i < tickers.length; i += TICKER_CONCURRENCY) {
+    const batch = tickers.slice(i, i + TICKER_CONCURRENCY)
 
-      let expOk = 0
-      let expFail = 0
-      for (const expiration of expirationDates) {
-        try {
-          const data = await fetchChainForExpiration(ticker, expiration, expirationDates, quote)
-          await pushToCache(ticker, data)
-          expOk++
-        } catch (expErr) {
-          expFail++
-        }
-        // Small delay between expirations to avoid rate limits
-        await new Promise((r) => setTimeout(r, 300))
+    const lines = await Promise.all(batch.map(async (ticker) => {
+      try {
+        const { expOk, expTotal, expFail } = await processTicker(ticker)
+        ok++
+        const note = expFail ? `, ${expFail} failed` : ''
+        return `  ${ticker.padEnd(6)} ✓  ${expOk}/${expTotal} exps${note}`
+      } catch (err) {
+        fail++
+        return `  ${ticker.padEnd(6)} ✗  ${err.message}`
       }
+    }))
 
-      console.log(` ✓  (${expOk}/${expirationDates.length} expirations${expFail ? `, ${expFail} failed` : ''})`)
-      ok++
-    } catch (err) {
-      console.log(` ✗  ${err.message}`)
-      fail++
+    lines.forEach(l => console.log(l))
+
+    // Inter-batch jitter: 100–200ms to spread request bursts
+    if (i + TICKER_CONCURRENCY < tickers.length) {
+      await new Promise(r => setTimeout(r, 100 + Math.random() * 100))
     }
-
-    // Delay between tickers
-    await new Promise((r) => setTimeout(r, 500))
   }
 
-  console.log(`\nDone: ${ok} succeeded, ${fail} failed`)
+  const elapsed = ((Date.now() - startMs) / 1000).toFixed(1)
+  console.log(`\nDone: ${ok} ok, ${fail} failed in ${elapsed}s`)
 
-  if (!process.argv.slice(2).length) {
+  if (!argv.length) {
     writeLastRun()
-    console.log(`Last-run timestamp saved to ${LAST_RUN_FILE}`)
   }
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error('Fatal:', err.message)
   process.exit(1)
 })

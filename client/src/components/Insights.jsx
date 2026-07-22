@@ -744,7 +744,65 @@ function PnlSurface({ spotPrice, heatmap, ticker, legs = [] }) {
   const [dragging, setDragging] = useState(false)
   const [showScenarios, setShowScenarios] = useState(true)
   const [greekOverlay, setGreekOverlay] = useState('none')
+  const [showIdealSell, setShowIdealSell] = useState(false)
   const dragRef = useRef(null)
+
+  // Compute ideal sell points: global max + an early-exit candidate
+  const idealSellPoints = useMemo(() => {
+    if (!stats) return []
+    const { grid, rows, sampledDayIdx, dayLevels } = stats
+    const nP = rows.length
+    const nD = sampledDayIdx.length
+
+    // Global max P/L across entire surface
+    let maxVal = -Infinity
+    let maxI = 0, maxJ = 0
+    for (let i = 0; i < nP; i++) {
+      for (let j = 0; j < nD; j++) {
+        const v = grid[i][j]?.value ?? 0
+        if (v > maxVal) { maxVal = v; maxI = i; maxJ = j }
+      }
+    }
+
+    const points = []
+    if (maxVal > 0) {
+      const price = rows[maxI].stockPrice
+      const dayOrig = sampledDayIdx[maxJ]
+      points.push({
+        i: maxI, j: maxJ, value: maxVal,
+        label: 'Max Gain',
+        sublabel: `$${price.toFixed(0)} · +${dayOrig}d`,
+        type: 'primary',
+      })
+    }
+
+    // Early-exit: best P/L within first third of the time axis
+    const earlyLimit = Math.max(1, Math.floor(nD * 0.33))
+    let earlyMaxVal = -Infinity
+    let earlyI = 0, earlyJ = 0
+    for (let i = 0; i < nP; i++) {
+      for (let j = 0; j < earlyLimit; j++) {
+        const v = grid[i][j]?.value ?? 0
+        if (v > earlyMaxVal) { earlyMaxVal = v; earlyI = i; earlyJ = j }
+      }
+    }
+    if (
+      earlyMaxVal > 0 &&
+      earlyMaxVal >= maxVal * 0.4 &&
+      (Math.abs(earlyI - maxI) > 2 || Math.abs(earlyJ - maxJ) > 2)
+    ) {
+      const price = rows[earlyI].stockPrice
+      const dayOrig = sampledDayIdx[earlyJ]
+      points.push({
+        i: earlyI, j: earlyJ, value: earlyMaxVal,
+        label: 'Early Exit',
+        sublabel: `$${price.toFixed(0)} · +${dayOrig}d`,
+        type: 'secondary',
+      })
+    }
+
+    return points
+  }, [stats])
 
   const greekStats = useMemo(() => {
     if (!stats || !legs.length || greekOverlay === 'none') return null
@@ -982,6 +1040,14 @@ function PnlSurface({ spotPrice, heatmap, ticker, legs = [] }) {
           <span className="insight-badge neutral">{yawDeg}&deg; &middot; {pitchDeg}&deg;</span>
           <button
             type="button"
+            className={`insight-reset-btn ${showIdealSell ? 'is-active' : ''}`}
+            onClick={() => setShowIdealSell((v) => !v)}
+            aria-pressed={showIdealSell}
+          >
+            {showIdealSell ? 'Hide ideal sells' : 'Ideal sell points'}
+          </button>
+          <button
+            type="button"
             className={`insight-reset-btn ${showScenarios ? 'is-active' : ''}`}
             onClick={() => setShowScenarios((v) => !v)}
             aria-pressed={showScenarios}
@@ -1081,6 +1147,57 @@ function PnlSurface({ spotPrice, heatmap, ticker, legs = [] }) {
         <text x={spotEnd.proj.x + 8} y={spotEnd.proj.y - 6} textAnchor="start" className="insight-marker-label insight-marker-accent">
           If Flat: {spotEnd.value >= 0 ? '+' : '\u2212'}${Math.abs(spotEnd.value).toFixed(0)}
         </text>
+        {showIdealSell && idealSellPoints.map((pt) => {
+          const proj = project(pt.i, pt.j, pt.value)
+          const isPrimary = pt.type === 'primary'
+          const color = isPrimary ? '#f0c040' : '#a78bfa'
+          const r = isPrimary ? 7 : 5.5
+          return (
+            <g key={`ideal-${pt.type}`} className="surface-ideal-sell">
+              {/* diamond marker = rotated square */}
+              <rect
+                x={proj.x - r}
+                y={proj.y - r}
+                width={r * 2}
+                height={r * 2}
+                fill={color}
+                stroke="rgba(11,15,25,0.9)"
+                strokeWidth={1.5}
+                transform={`rotate(45 ${proj.x} ${proj.y})`}
+                opacity={0.92}
+              />
+              {/* halo glow */}
+              <rect
+                x={proj.x - r - 3}
+                y={proj.y - r - 3}
+                width={(r + 3) * 2}
+                height={(r + 3) * 2}
+                fill="none"
+                stroke={color}
+                strokeWidth={1}
+                transform={`rotate(45 ${proj.x} ${proj.y})`}
+                opacity={0.3}
+              />
+              <text
+                x={proj.x + r + 6}
+                y={proj.y - 6}
+                textAnchor="start"
+                className="surface-ideal-label"
+                style={{ fill: color }}
+              >
+                {pt.label}
+              </text>
+              <text
+                x={proj.x + r + 6}
+                y={proj.y + 8}
+                textAnchor="start"
+                className="surface-ideal-sublabel"
+              >
+                {pt.sublabel} &middot; +${pt.value.toFixed(0)}
+              </text>
+            </g>
+          )
+        })}
         {showScenarios &&
           [...scenarioPaths].sort((a, b) => b.rank - a.rank).map((path) => {
             const projected = path.points.map((pt) => project(pt.pIdx, pt.dayIdx, pt.value))

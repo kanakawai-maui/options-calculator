@@ -1,43 +1,5 @@
 require('dotenv').config()
 
-// ---------------------------------------------------------------------------
-// Yahoo Finance proxy — intercepts outbound fetch calls made by yahoo-finance2
-// and reroutes them through a Cloudflare Worker when YAHOO_PROXY_URL is set.
-//
-// This is needed because Yahoo Finance blocks Render free-tier IP ranges.
-// Set YAHOO_PROXY_URL to your deployed *.workers.dev URL to enable the proxy.
-// Set YAHOO_PROXY_SECRET to the matching CF secret binding (optional but
-// recommended to prevent open-proxy abuse).
-// ---------------------------------------------------------------------------
-if (process.env.YAHOO_PROXY_URL) {
-  const proxyBase = process.env.YAHOO_PROXY_URL.replace(/\/$/, '')
-  const proxySecret = process.env.YAHOO_PROXY_SECRET || null
-  const YAHOO_RE = /^https:\/\/(query1|query2)\.finance\.yahoo\.com(\/|$)/
-
-  const _originalFetch = globalThis.fetch
-  globalThis.fetch = function patchedFetch(input, init) {
-    const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-    if (urlStr && YAHOO_RE.test(urlStr)) {
-      // Rewrite:  https://query1.finance.yahoo.com/v7/…
-      //       →   https://<proxyBase>/query1.finance.yahoo.com/v7/…
-      const parsed = new URL(urlStr)
-      const rewritten = `${proxyBase}/${parsed.host}${parsed.pathname}${parsed.search}`
-      const headers = new Headers(
-        (init && init.headers) ? init.headers
-          : (input && typeof input === 'object' && input.headers) ? input.headers
-          : {}
-      )
-      if (proxySecret) {
-        headers.set('x-proxy-secret', proxySecret)
-      }
-      return _originalFetch(rewritten, { ...(init || {}), headers })
-    }
-    return _originalFetch(input, init)
-  }
-
-  console.log(`[proxy] Yahoo Finance requests will be routed through ${proxyBase}`)
-}
-
 const path = require('path')
 const express = require('express')
 const cors = require('cors')
@@ -422,116 +384,7 @@ async function fetchFromD1Cache(ticker, expiration) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Massive API — backup option chain provider (active when MASSIVE_API_KEY is set)
-// Requires Options Starter plan or higher: https://massive.com
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function fetchFromMassive(ticker, requestedExpiration) {
-  const apiKey = process.env.MASSIVE_API_KEY
-  if (!apiKey) throw new Error('MASSIVE_API_KEY not configured')
-
-  const base = 'https://api.massive.com'
-
-  // Step 1: Get available expiration dates from the reference contracts endpoint
-  const refUrl =
-    `${base}/v3/reference/options/contracts` +
-    `?underlying_ticker=${encodeURIComponent(ticker)}` +
-    `&expired=false&order=asc&sort=expiration_date&limit=1000&apiKey=${apiKey}`
-  const refRes = await fetch(refUrl)
-  if (!refRes.ok) throw new Error(`Massive contracts ${refRes.status}: ${refRes.statusText}`)
-  const refData = await refRes.json()
-
-  if (!refData.results?.length) throw new Error('Massive: no contracts found')
-
-  // Deduplicate expiration dates (YYYY-MM-DD) → unix seconds
-  // Use 20:00 UTC as a stable anchor (≈ 4pm ET, options expiry close)
-  const expDateSet = new Set()
-  for (const c of refData.results) {
-    if (c.expiration_date) expDateSet.add(c.expiration_date)
-  }
-  const sortedDates = Array.from(expDateSet).sort()
-  const expirationDates = sortedDates.map(d =>
-    Math.round(new Date(d + 'T20:00:00Z').getTime() / 1000),
-  )
-
-  if (!expirationDates.length) throw new Error('Massive: no expiration dates parsed')
-
-  // Step 2: Select closest expiration to the requested one, or default to ~30 days out
-  const _nowSec = Date.now() / 1000
-  let selectedExpiration
-  if (requestedExpiration) {
-    selectedExpiration = expirationDates.reduce((best, e) =>
-      Math.abs(e - requestedExpiration) < Math.abs(best - requestedExpiration) ? e : best,
-    )
-  } else {
-    const _target30 = _nowSec + 30 * 86400
-    selectedExpiration = expirationDates.reduce((best, e) =>
-      Math.abs(e - _target30) < Math.abs(best - _target30) ? e : best,
-    )
-  }
-  const selectedDate = sortedDates[expirationDates.indexOf(selectedExpiration)]
-
-  // Step 3: Fetch option chain snapshot for the selected expiration
-  const chainUrl =
-    `${base}/v3/snapshot/options/${encodeURIComponent(ticker)}` +
-    `?expiration_date=${selectedDate}&limit=250&apiKey=${apiKey}`
-  const chainRes = await fetch(chainUrl)
-  if (!chainRes.ok) throw new Error(`Massive chain ${chainRes.status}: ${chainRes.statusText}`)
-  const chainData = await chainRes.json()
-
-  if (!chainData.results?.length) throw new Error(`Massive: empty chain for ${selectedDate}`)
-
-  // Step 4: Normalize to the same contract shape the client expects
-  const spotPrice = chainData.results[0]?.underlying_asset?.price ?? null
-  const calls = []
-  const puts = []
-
-  for (const r of chainData.results) {
-    const d = r.details || {}
-    const q = r.last_quote || {}
-    const strike = Number(d.strike_price) || 0
-    if (!strike || !d.contract_type) continue
-
-    const bid = Number(q.bid) || 0
-    const ask = Number(q.ask) || 0
-    const mark = q.midpoint != null ? Number(q.midpoint) : (bid + ask) / 2
-
-    const contract = {
-      contractSymbol: (d.ticker || '').replace(/^O:/, ''),
-      strike,
-      expiration: selectedExpiration,
-      bid,
-      ask,
-      mark,
-      lastPrice: r.last_trade?.price != null ? Number(r.last_trade.price) : mark,
-      impliedVolatility: r.implied_volatility != null ? Number(r.implied_volatility) : null,
-      inTheMoney: spotPrice != null
-        ? (d.contract_type === 'call' ? spotPrice > strike : spotPrice < strike)
-        : false,
-      volume: Number(r.day?.volume) || 0,
-      openInterest: Number(r.open_interest) || 0,
-    }
-
-    if (d.contract_type === 'call') calls.push(contract)
-    else if (d.contract_type === 'put') puts.push(contract)
-  }
-
-  return {
-    ticker,
-    quote: {
-      symbol: ticker,
-      regularMarketPrice: spotPrice,
-      regularMarketChangePercent: null,
-    },
-    expirationDates,
-    selectedExpiration,
-    optionChain: { calls, puts },
-    source: 'Massive API (backup provider)',
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Fallback demo data (used when Yahoo Finance is rate-limited)
+// Fallback demo data (used when D1 cache is unavailable)
 // Generates a synthetic AAPL-like option chain using a simplified BSM approach
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -614,7 +467,6 @@ function generateFallbackChain(ticker, requestedExpiration) {
 
 app.get('/api/option-chain', async (request, response) => {
   const ticker = String(request.query.ticker || '').trim().toUpperCase()
-  // Validate expiration is a plausible unix timestamp (now → +2 years)
   const _nowSec = Math.floor(Date.now() / 1000)
   const _rawExp = request.query.expiration ? Number(request.query.expiration) : null
   const expiration =
@@ -627,81 +479,14 @@ app.get('/api/option-chain', async (request, response) => {
     return
   }
 
-  // When DISABLE_LIVE_FETCH is set, skip Yahoo/Massive and go straight to D1 cache
-  const disableLive = process.env.DISABLE_LIVE_FETCH === 'true'
-
-  if (!disableLive) {
-    // Use Massive as primary provider when an API key is configured
-    if (process.env.MASSIVE_API_KEY) {
-      try {
-        const result = await fetchFromMassive(ticker, expiration)
-        response.json(result)
-        return
-      } catch (err) {
-        console.error(`[option-chain] ${ticker}: Massive failed:`, err?.message || err)
-      }
-    } else {
-      // Fall back to Yahoo Finance when no Massive key is set
-      try {
-        const quote = await yahooFinance.quote(ticker)
-
-        let optionData = await yahooFinance.options(ticker)
-
-        const expirationDates = (optionData.expirationDates || [])
-          .map(toUnixSeconds)
-          .filter((value) => Number.isFinite(value))
-
-        let selectedExpiration = expiration
-        if (!selectedExpiration || !expirationDates.includes(selectedExpiration)) {
-          // Default to the expiration closest to ~30 days out (matches client logic)
-          const nowSec = Date.now() / 1000
-          const target30 = nowSec + 30 * 86400
-          selectedExpiration = expirationDates.length > 0
-            ? expirationDates.reduce((best, e) =>
-                Math.abs(e - target30) < Math.abs(best - target30) ? e : best)
-            : null
-        }
-
-        if (selectedExpiration) {
-          optionData = await yahooFinance.options(ticker, {
-            date: new Date(selectedExpiration * 1000),
-          })
-        }
-
-        const chain = optionData.options?.[0] || { calls: [], puts: [] }
-
-        response.json({
-          ticker,
-          quote: {
-            symbol: quote.symbol,
-            regularMarketPrice: Number(quote.regularMarketPrice) || null,
-            regularMarketChangePercent: Number(quote.regularMarketChangePercent) || null,
-          },
-          expirationDates,
-          selectedExpiration,
-          optionChain: {
-            calls: (chain.calls || []).map(normalizeContract),
-            puts: (chain.puts || []).map(normalizeContract),
-          },
-          source: 'Yahoo Finance via yahoo-finance2',
-        })
-        return
-      } catch (error) {
-        console.error(`[option-chain] ${ticker}:`, error?.message || error)
-      }
-    }
-  } else {
-    console.log(`[option-chain] ${ticker}: live fetch disabled, using D1 cache`)
-  }
-
-  // D1 cache — last resort before synthetic data
+  // D1 cache is the primary and only live source — populated by scripts/prefetch.js
   if (process.env.CACHE_WORKER_URL) {
     try {
       const cached = await fetchFromD1Cache(ticker, expiration)
       response.json(cached)
       return
     } catch (cacheErr) {
-      console.error(`[option-chain] ${ticker}: D1 cache failed:`, cacheErr?.message || cacheErr)
+      console.error(`[option-chain] ${ticker}: D1 cache miss:`, cacheErr?.message || cacheErr)
     }
   }
 

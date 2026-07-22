@@ -1395,6 +1395,7 @@ button:disabled {
   pointer-events: none;
   white-space: normal;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  text-align: left;
 }
 
 .insight-axis {
@@ -1705,6 +1706,25 @@ button:disabled {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+/* ─── Ideal sell point markers ────────────────────────────────────────────── */
+.surface-ideal-sell {
+  pointer-events: none;
+}
+
+.surface-ideal-label {
+  font-family: var(--mono-font);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.surface-ideal-sublabel {
+  font-family: var(--mono-font);
+  font-size: 11px;
+  fill: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─── Greek surface overlay ───────────────────────────────────────────────── */

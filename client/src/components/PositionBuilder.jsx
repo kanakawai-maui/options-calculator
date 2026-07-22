@@ -10,6 +10,7 @@ const STRATEGIES = [
     desc: 'Buy ATM call + buy ATM put — profits from large moves either direction',
     group: 'Volatility',
     traits: { direction: 'either', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Volatile', expect: 'Expects a sharp move in either direction before expiry. Time decay works against you if the stock stays flat.' },
   },
   {
     id: 'short-straddle',
@@ -17,6 +18,7 @@ const STRATEGIES = [
     desc: 'Sell ATM call + sell ATM put — collects premium when price stays flat',
     group: 'Volatility',
     traits: { direction: 'sideways', risk: 'undefined', timeframe: 'short' },
+    tip: { sentiment: 'Neutral', expect: 'Expects the stock to stay near the strike through expiry. Profits from time decay and falling implied volatility.' },
   },
   {
     id: 'long-strangle',
@@ -24,6 +26,7 @@ const STRATEGIES = [
     desc: 'Buy OTM call + buy OTM put — cheaper than straddle, needs bigger move',
     group: 'Volatility',
     traits: { direction: 'either', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Volatile', expect: 'Expects a large move in either direction. Cheaper than a straddle but needs a bigger move to break even.' },
   },
   {
     id: 'short-strangle',
@@ -31,6 +34,7 @@ const STRATEGIES = [
     desc: 'Sell OTM call + sell OTM put — wider profit zone than short straddle',
     group: 'Volatility',
     traits: { direction: 'sideways', risk: 'undefined', timeframe: 'short' },
+    tip: { sentiment: 'Neutral', expect: 'Expects the stock to stay within the range between the two strikes. Wider profit zone than a short straddle.' },
   },
   {
     id: 'iron-condor',
@@ -38,6 +42,7 @@ const STRATEGIES = [
     desc: 'Sell OTM call & put, buy further OTM wings — defined-risk range strategy',
     group: 'Condors',
     traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Neutral', expect: 'Expects the stock to stay between the two short strikes at expiry. Profits from low volatility and time decay.' },
   },
   {
     id: 'iron-butterfly',
@@ -45,6 +50,7 @@ const STRATEGIES = [
     desc: 'Sell ATM call & put, buy OTM wings — higher premium, narrower profit zone',
     group: 'Condors',
     traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Neutral', expect: 'Expects the stock to pin near the ATM strike at expiry. Higher max profit than iron condor but profit zone is narrower.' },
   },
   {
     id: 'bull-call-spread',
@@ -52,6 +58,7 @@ const STRATEGIES = [
     desc: 'Buy ATM call + sell OTM call — debit spread, profits when stock rises',
     group: 'Spreads',
     traits: { direction: 'up', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Bullish', expect: 'Expects a moderate rise in stock price. Profits between the two strikes; gain is capped at the short call.' },
   },
   {
     id: 'bear-put-spread',
@@ -59,6 +66,7 @@ const STRATEGIES = [
     desc: 'Buy ATM put + sell OTM put — debit spread, profits when stock falls',
     group: 'Spreads',
     traits: { direction: 'down', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Bearish', expect: 'Expects a moderate decline in stock price. Profits between the two strikes; gain is capped at the short put.' },
   },
   {
     id: 'bull-put-spread',
@@ -66,6 +74,7 @@ const STRATEGIES = [
     desc: 'Sell ATM put + buy OTM put — credit spread, profits when stock stays up',
     group: 'Spreads',
     traits: { direction: 'up', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Bullish', expect: 'Expects the stock to stay above the short put strike. Collects credit upfront; keeps full credit if stock closes above.' },
   },
   {
     id: 'bear-call-spread',
@@ -73,6 +82,7 @@ const STRATEGIES = [
     desc: 'Sell ATM call + buy OTM call — credit spread, profits when stock stays down',
     group: 'Spreads',
     traits: { direction: 'down', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Bearish', expect: 'Expects the stock to stay below the short call strike. Collects credit upfront; keeps full credit if stock closes below.' },
   },
   {
     id: 'call-calendar',
@@ -80,6 +90,7 @@ const STRATEGIES = [
     desc: 'Sell near-term ATM call + buy far-term ATM call — profits from time decay and low movement',
     group: 'Calendar',
     traits: { direction: 'sideways', risk: 'defined', timeframe: 'long' },
+    tip: { sentiment: 'Neutral', expect: 'Expects the stock to stay near the strike through the near-term expiry, then possibly trend slowly higher.' },
   },
   {
     id: 'put-calendar',
@@ -87,6 +98,7 @@ const STRATEGIES = [
     desc: 'Sell near-term ATM put + buy far-term ATM put — profits from time decay and low movement',
     group: 'Calendar',
     traits: { direction: 'sideways', risk: 'defined', timeframe: 'long' },
+    tip: { sentiment: 'Neutral', expect: 'Expects the stock to stay near the strike through the near-term expiry. Time decay differential between the two legs drives profit.' },
   },
   {
     id: 'covered-call',
@@ -94,6 +106,7 @@ const STRATEGIES = [
     desc: 'Long 100 shares + short OTM call — collects income premium, caps upside',
     group: 'Stock',
     traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Neutral', expect: 'Expects the stock to stay flat to slightly rise, staying below the short call strike. Generates income on a long stock position.' },
   },
   {
     id: 'protective-put',
@@ -101,6 +114,7 @@ const STRATEGIES = [
     desc: 'Long 100 shares + long OTM put — insures against downside while keeping upside',
     group: 'Stock',
     traits: { direction: 'up', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Bullish', expect: 'Expects the stock to rise but hedges against a sharp drop. The put acts as portfolio insurance on the long stock position.' },
   },
   {
     id: 'collar',
@@ -108,6 +122,7 @@ const STRATEGIES = [
     desc: 'Long 100 shares + short OTM call + long OTM put — bounded upside and downside',
     group: 'Stock',
     traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Neutral', expect: 'Accepts capped upside in exchange for downside protection. Ideal when holding stock and wanting to reduce risk at minimal cost.' },
   },
   {
     id: 'cash-secured-put',
@@ -115,10 +130,31 @@ const STRATEGIES = [
     desc: 'Short OTM put with cash collateral — collects premium, acquires stock if assigned',
     group: 'Stock',
     traits: { direction: 'sideways', risk: 'defined', timeframe: 'short' },
+    tip: { sentiment: 'Neutral', expect: 'Expects the stock to stay flat or rise above the short put strike. Willing to buy stock at a lower effective cost if assigned.' },
   },
 ]
 
 const GROUPS = ['Volatility', 'Condors', 'Spreads', 'Calendar', 'Stock']
+
+const GROUP_INFO = {
+  Volatility:
+    'Expects a large price move in either direction (long straddle/strangle) or flat, range-bound price with low volatility (short straddle/strangle).',
+  Condors:
+    'Expects price to stay within a defined range and remain relatively flat. Profits from low volatility and time decay eroding both short strikes.',
+  Spreads:
+    'Expects a clear directional move — bull spreads profit when price rises, bear spreads profit when price falls. Defined risk on both sides.',
+  Calendar:
+    'Expects price to stay near current levels. Profits from near-term time decay (theta) while the longer-dated long leg retains value.',
+  Stock:
+    'Covered calls and cash-secured puts expect flat to slightly rising prices. Protective puts guard against declines while keeping upside. Collars bound both ends.',
+}
+
+const SENTIMENT_COLOR = {
+  Bullish: 'var(--pos)',
+  Bearish: 'var(--neg)',
+  Neutral: 'var(--text-muted)',
+  Volatile: 'var(--accent-warm)',
+}
 
 const FINDER_GROUPS = [
   {
@@ -148,6 +184,57 @@ const FINDER_GROUPS = [
     ],
   },
 ]
+
+function StrategyBtn({ s, dim, disabled, onClick }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <span
+      className="strategy-btn-wrap"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        className={`strategy-btn${dim ? ' strategy-btn--dim' : ''}`}
+        disabled={disabled}
+        onClick={onClick}
+      >
+        {s.label}
+      </button>
+      {hovered && s.tip && (
+        <span className="strategy-tooltip" role="tooltip">
+          <span
+            className="strategy-tooltip-sentiment"
+            style={{ color: SENTIMENT_COLOR[s.tip.sentiment] ?? 'var(--text-muted)' }}
+          >
+            {s.tip.sentiment}
+          </span>
+          <span className="strategy-tooltip-expect">{s.tip.expect}</span>
+        </span>
+      )}
+    </span>
+  )
+}
+
+function GroupInfoTip({ text }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <span
+      className="group-info-tip"
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+      tabIndex={0}
+      onFocus={() => setVisible(true)}
+      onBlur={() => setVisible(false)}
+      role="button"
+      aria-label="Strategy group info"
+    >
+      <span className="group-info-icon">?</span>
+      {visible && (
+        <span className="group-info-tooltip" role="tooltip">{text}</span>
+      )}
+    </span>
+  )
+}
 
 function formatExpDate(exp) {
   if (!exp) return '--'
@@ -446,20 +533,21 @@ export function PositionBuilder() {
         <div className="strategy-groups">
           {GROUPS.map((group) => (
             <div key={group} className="strategy-group">
-              <span className="strategy-group-label">{group}</span>
+              <span className="strategy-group-label">
+                {group}
+                {GROUP_INFO[group] && <GroupInfoTip text={GROUP_INFO[group]} />}
+              </span>
               <div className="strategy-btn-row">
                 {STRATEGIES.filter((s) => s.group === group).map((s) => {
                   const dim = finderActive && !strategyMatches(s)
                   return (
-                    <button
+                    <StrategyBtn
                       key={s.id}
-                      className={`strategy-btn${dim ? ' strategy-btn--dim' : ''}`}
-                      title={s.desc}
+                      s={s}
+                      dim={dim}
                       disabled={!hasChain}
                       onClick={() => applyStrategy(s.id)}
-                    >
-                      {s.label}
-                    </button>
+                    />
                   )
                 })}
               </div>
